@@ -13,6 +13,8 @@ const SymbolKind = {
   Struct: 22, Event: 23, Operator: 24, TypeParameter: 25,
 } as const;
 
+const ProgressLocation = { Notification: 15, Window: 10 } as const;
+
 function createMockVSCode(overrides: Partial<any> = {}): VSCodeAPI {
   return {
     commands: { executeCommand: mock.fn(async () => undefined) },
@@ -26,9 +28,11 @@ function createMockVSCode(overrides: Partial<any> = {}): VSCodeAPI {
       showTextDocument: mock.fn(async () => ({ selection: null, revealRange: () => {} })),
       showErrorMessage: mock.fn(async () => undefined),
       showQuickPick: mock.fn(async () => undefined),
+      withProgress: mock.fn(async (_opts: any, task: any) => task({ report: () => {} }, { isCancellationRequested: false })),
     },
     Uri: { file: (path: string) => ({ fsPath: path, path }) as any },
     SymbolKind: SymbolKind as any,
+    ProgressLocation: ProgressLocation as any,
     Selection: class { constructor(public start: any, public end: any) {} } as any,
     TextEditorRevealType: { InCenter: 2 } as any,
     ...overrides,
@@ -231,6 +235,7 @@ describe('handleUri', () => {
         showTextDocument: mock.fn(async () => ({ selection: null, revealRange: () => {} })),
         showErrorMessage: mock.fn(async () => undefined),
         showQuickPick: mock.fn(async (items: any[]) => items[1]),
+        withProgress: mock.fn(async (_opts: any, task: any) => task({ report: () => {} }, { isCancellationRequested: false })),
       },
     });
     const config = { ...defaultConfig, multipleSymbolBehavior: 'quickpick' as const };
@@ -362,6 +367,7 @@ describe('handleUri', () => {
         showTextDocument: mock.fn(async () => ({ selection: null, revealRange: () => {} })),
         showErrorMessage: mock.fn(async () => undefined),
         showQuickPick: mock.fn(async (items: any[]) => items[0]),
+        withProgress: mock.fn(async (_opts: any, task: any) => task({ report: () => {} }, { isCancellationRequested: false })),
       },
     });
     const { handleUri } = createHandler({ vscode, getConfig: () => defaultConfig, logger: noopLogger });
@@ -397,6 +403,7 @@ describe('handleUri', () => {
         showTextDocument: mock.fn(async () => ({ selection: null, revealRange: () => {} })),
         showErrorMessage: mock.fn(async () => undefined),
         showQuickPick: mock.fn(async () => undefined), // User cancels quickpick
+        withProgress: mock.fn(async (_opts: any, task: any) => task({ report: () => {} }, { isCancellationRequested: false })),
       },
     });
     const config = { ...defaultConfig, retryCount: 3 };
@@ -482,6 +489,7 @@ describe('handleUri', () => {
           quickPickItems = items;
           return items[0];
         }),
+        withProgress: mock.fn(async (_opts: any, task: any) => task({ report: () => {} }, { isCancellationRequested: false })),
       },
     });
     const config = { ...defaultConfig, multipleSymbolBehavior: 'quickpick' as const };

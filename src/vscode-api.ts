@@ -20,7 +20,15 @@ export interface VSCodeAPI {
       items: T[],
       options?: vscode.QuickPickOptions
     ): Thenable<T | undefined>;
+    withProgress<R>(
+      options: vscode.ProgressOptions,
+      task: (
+        progress: vscode.Progress<{ message?: string; increment?: number }>,
+        token: vscode.CancellationToken
+      ) => Thenable<R>
+    ): Thenable<R>;
   };
+  ProgressLocation: typeof vscode.ProgressLocation;
   Uri: {
     file(path: string): vscode.Uri;
   };

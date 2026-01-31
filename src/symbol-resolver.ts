@@ -146,24 +146,38 @@ export function createSymbolResolver(deps: SymbolResolverDeps) {
   ): Promise<vscode.SymbolInformation | undefined> {
     const config = getConfig();
 
-    // LSP may not be ready immediately after workspace opens. Retry until indexed.
-    for (let attempt = 0; attempt < config.retryCount; attempt++) {
-      logger.debug(`attempt ${attempt + 1}/${config.retryCount}`);
+    return vscode.window.withProgress(
+      {
+        location: vscode.ProgressLocation.Window,
+        title: `Looking for symbol "${symbolName}"`,
+        cancellable: true,
+      },
+      async (progress, token) => {
+        // LSP may not be ready immediately after workspace opens. Retry until indexed.
+        for (let attempt = 0; attempt < config.retryCount; attempt++) {
+          if (token.isCancellationRequested) {
+            return undefined;
+          }
 
-      const result = await tryResolveSymbol(symbolName, kind);
-      if (result.symbol) {
-        return result.symbol;
+          logger.debug(`attempt ${attempt + 1}/${config.retryCount}`);
+          progress.report({ message: `(${attempt + 1}/${config.retryCount})` });
+
+          const result = await tryResolveSymbol(symbolName, kind);
+          if (result.symbol) {
+            return result.symbol;
+          }
+
+          if (result.fuzzyMatches.length > 0) {
+            // LSP is working but no exact match - show fuzzy matches in quickpick
+            return selectFuzzyMatch(result.fuzzyMatches);
+          }
+
+          await new Promise(resolve => setTimeout(resolve, config.retryInterval));
+        }
+
+        return undefined;
       }
-
-      if (result.fuzzyMatches.length > 0) {
-        // LSP is working but no exact match - show fuzzy matches in quickpick
-        return selectFuzzyMatch(result.fuzzyMatches);
-      }
-
-      await new Promise(resolve => setTimeout(resolve, config.retryInterval));
-    }
-
-    return undefined;
+    );
   }
 
   async function selectFuzzyMatch(
