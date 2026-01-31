@@ -15,7 +15,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
   const uriHandler = vscode.window.registerUriHandler({
     async handleUri(uri: vscode.Uri) {
-      logger.debug(`URI received: ${uri.toString()}`);
+      logger.info(`URI received: ${uri.toString()}`);
       logger.debug(`uri.query raw: ${uri.query}`);
       const decoded = decodeURIComponent(uri.query);
       logger.debug(`uri.query decoded: ${decoded}`);
