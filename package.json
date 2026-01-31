@@ -4,6 +4,11 @@
   "description": "Opens symbol definitions via URI handler for osc8wrap",
   "version": "0.0.1",
   "license": "MIT",
+  "files": [
+    "out/*.js",
+    "README.md",
+    "LICENSE"
+  ],
   "publisher": "mash",
   "repository": {
     "type": "git",
