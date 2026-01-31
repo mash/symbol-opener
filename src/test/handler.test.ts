@@ -1,7 +1,8 @@
 import { describe, it, mock } from 'node:test';
 import assert from 'node:assert';
-import { createHandler, VSCodeAPI } from '../handler';
-import type { Config } from '../config';
+import { createHandler } from '../handler';
+import type { Config, Logger } from '../config';
+import type { VSCodeAPI } from '../vscode-api';
 
 const SymbolKind = {
   File: 0, Module: 1, Namespace: 2, Package: 3, Class: 4, Method: 5,
@@ -18,14 +19,17 @@ function createMockVSCode(overrides: Partial<any> = {}): VSCodeAPI {
       workspaceFolders: [{ uri: { fsPath: '/project' } }],
       openTextDocument: mock.fn(async (uri: any) => ({ uri })),
       getConfiguration: () => ({ get: <T>(_k: string, d: T) => d }),
+      findFiles: mock.fn(async () => []),
     },
     window: {
-      showTextDocument: mock.fn(async () => ({})),
+      showTextDocument: mock.fn(async () => ({ selection: null, revealRange: () => {} })),
       showErrorMessage: mock.fn(async () => undefined),
       showQuickPick: mock.fn(async () => undefined),
     },
     Uri: { file: (path: string) => ({ fsPath: path, path }) as any },
     SymbolKind: SymbolKind as any,
+    Selection: class { constructor(public start: any, public end: any) {} } as any,
+    TextEditorRevealType: { InCenter: 2 } as any,
     ...overrides,
   } as any;
 }
@@ -39,12 +43,17 @@ const defaultConfig: Config = {
   workspaceNotOpenBehavior: 'new-window',
   retryCount: 1,
   retryInterval: 0,
+  langDetectors: [],
+  logLevel: 'info',
 };
+
+const noop = () => {};
+const noopLogger: Logger = { debug: noop, info: noop };
 
 describe('handleUri', () => {
   it('shows error when symbol param is missing', async () => {
     const vscode = createMockVSCode();
-    const { handleUri } = createHandler({ vscode, getConfig: () => defaultConfig });
+    const { handleUri } = createHandler({ vscode, getConfig: () => defaultConfig, logger: noopLogger });
 
     await handleUri(createMockUri('cwd=/project'));
 
@@ -55,7 +64,7 @@ describe('handleUri', () => {
 
   it('shows error when cwd param is missing', async () => {
     const vscode = createMockVSCode();
-    const { handleUri } = createHandler({ vscode, getConfig: () => defaultConfig });
+    const { handleUri } = createHandler({ vscode, getConfig: () => defaultConfig, logger: noopLogger });
 
     await handleUri(createMockUri('symbol=Foo'));
 
@@ -70,7 +79,7 @@ describe('handleUri', () => {
         getConfiguration: () => ({ get: <T>(_k: string, d: T) => d }),
       },
     });
-    const { handleUri } = createHandler({ vscode, getConfig: () => defaultConfig });
+    const { handleUri } = createHandler({ vscode, getConfig: () => defaultConfig, logger: noopLogger });
 
     await handleUri(createMockUri('symbol=Foo&cwd=/project'));
 
@@ -89,7 +98,7 @@ describe('handleUri', () => {
       },
     });
     const config = { ...defaultConfig, workspaceNotOpenBehavior: 'error' as const };
-    const { handleUri } = createHandler({ vscode, getConfig: () => config });
+    const { handleUri } = createHandler({ vscode, getConfig: () => config, logger: noopLogger });
 
     await handleUri(createMockUri('symbol=Foo&cwd=/project'));
 
@@ -113,7 +122,7 @@ describe('handleUri', () => {
         }),
       },
     });
-    const { handleUri } = createHandler({ vscode, getConfig: () => defaultConfig });
+    const { handleUri } = createHandler({ vscode, getConfig: () => defaultConfig, logger: noopLogger });
 
     await handleUri(createMockUri('symbol=Foo&cwd=/project'));
 
@@ -122,8 +131,9 @@ describe('handleUri', () => {
   });
 
   it('filters by kind when provided', async () => {
-    const fnLocation = { uri: { fsPath: '/project/fn.ts' }, range: {} };
-    const classLocation = { uri: { fsPath: '/project/class.ts' }, range: {} };
+    const mockRange = { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } };
+    const fnLocation = { uri: { fsPath: '/project/fn.ts' }, range: mockRange };
+    const classLocation = { uri: { fsPath: '/project/class.ts' }, range: mockRange };
     const vscode = createMockVSCode({
       commands: {
         executeCommand: mock.fn(async (cmd: string) => {
@@ -137,7 +147,7 @@ describe('handleUri', () => {
         }),
       },
     });
-    const { handleUri } = createHandler({ vscode, getConfig: () => defaultConfig });
+    const { handleUri } = createHandler({ vscode, getConfig: () => defaultConfig, logger: noopLogger });
 
     await handleUri(createMockUri('symbol=Foo&cwd=/project&kind=Function'));
 
@@ -152,12 +162,72 @@ describe('handleUri', () => {
         executeCommand: mock.fn(async () => []),
       },
     });
-    const { handleUri } = createHandler({ vscode, getConfig: () => defaultConfig });
+    const { handleUri } = createHandler({ vscode, getConfig: () => defaultConfig, logger: noopLogger });
 
     await handleUri(createMockUri('symbol=NotFound&cwd=/project'));
 
     const calls = (vscode.window.showErrorMessage as any).mock.calls;
     assert.strictEqual(calls.length, 1);
     assert.match(calls[0].arguments[0], /not found/);
+  });
+
+  it('prefers workspace symbol over external with workspace-priority', async () => {
+    const mockRange = { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } };
+    const workspaceLocation = { uri: { fsPath: '/project/src/foo.ts' }, range: mockRange };
+    const externalLocation = { uri: { fsPath: '/other/node_modules/foo.ts' }, range: mockRange };
+    const vscode = createMockVSCode({
+      commands: {
+        executeCommand: mock.fn(async (cmd: string) => {
+          if (cmd === 'vscode.executeWorkspaceSymbolProvider') {
+            return [
+              { name: 'Foo', kind: SymbolKind.Function, location: externalLocation },
+              { name: 'Foo', kind: SymbolKind.Function, location: workspaceLocation },
+            ];
+          }
+          return undefined;
+        }),
+      },
+    });
+    const config = { ...defaultConfig, multipleSymbolBehavior: 'workspace-priority' as const };
+    const { handleUri } = createHandler({ vscode, getConfig: () => config, logger: noopLogger });
+
+    await handleUri(createMockUri('symbol=Foo&cwd=/project'));
+
+    const openCalls = (vscode.workspace.openTextDocument as any).mock.calls;
+    assert.strictEqual(openCalls.length, 1);
+    assert.strictEqual(openCalls[0].arguments[0].fsPath, '/project/src/foo.ts');
+  });
+
+  it('shows quickpick when multiple symbols and behavior is quickpick', async () => {
+    const mockRange = { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } };
+    const location1 = { uri: { fsPath: '/project/a.ts' }, range: mockRange };
+    const location2 = { uri: { fsPath: '/project/b.ts' }, range: mockRange };
+    const vscode = createMockVSCode({
+      commands: {
+        executeCommand: mock.fn(async (cmd: string) => {
+          if (cmd === 'vscode.executeWorkspaceSymbolProvider') {
+            return [
+              { name: 'Foo', kind: SymbolKind.Function, location: location1 },
+              { name: 'Foo', kind: SymbolKind.Function, location: location2 },
+            ];
+          }
+          return undefined;
+        }),
+      },
+      window: {
+        showTextDocument: mock.fn(async () => ({ selection: null, revealRange: () => {} })),
+        showErrorMessage: mock.fn(async () => undefined),
+        showQuickPick: mock.fn(async (items: any[]) => items[1]),
+      },
+    });
+    const config = { ...defaultConfig, multipleSymbolBehavior: 'quickpick' as const };
+    const { handleUri } = createHandler({ vscode, getConfig: () => config, logger: noopLogger });
+
+    await handleUri(createMockUri('symbol=Foo&cwd=/project'));
+
+    assert.strictEqual((vscode.window.showQuickPick as any).mock.calls.length, 1);
+    const openCalls = (vscode.workspace.openTextDocument as any).mock.calls;
+    assert.strictEqual(openCalls.length, 1);
+    assert.strictEqual(openCalls[0].arguments[0].fsPath, '/project/b.ts');
   });
 });

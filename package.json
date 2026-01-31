@@ -12,6 +12,9 @@
   "engines": {
     "vscode": "^1.80.0"
   },
+  "categories": [
+    "Other"
+  ],
   "activationEvents": [
     "onUri"
   ],
@@ -24,23 +27,56 @@
           "type": "string",
           "enum": ["first", "quickpick", "workspace-priority"],
           "default": "first",
-          "description": "Behavior when multiple symbols match: first (use first result), quickpick (show picker), workspace-priority (prefer current workspace)"
+          "description": "Behavior when multiple symbols match: first (use first result), quickpick (show picker), workspace-priority (prefer current workspace)",
+          "scope": "window"
         },
         "symbolOpener.workspaceNotOpenBehavior": {
           "type": "string",
           "enum": ["new-window", "current-window", "error"],
           "default": "new-window",
-          "description": "Behavior when the workspace is not open: new-window (open in new window), current-window (open in current window), error (show error)"
+          "description": "Behavior when the workspace is not open: new-window (open in new window), current-window (open in current window), error (show error)",
+          "scope": "window"
         },
         "symbolOpener.retryCount": {
           "type": "number",
-          "default": 5,
-          "description": "Number of retries when waiting for LSP to be ready"
+          "default": 10,
+          "description": "Number of retries when waiting for LSP to be ready",
+          "scope": "window"
         },
         "symbolOpener.retryInterval": {
           "type": "number",
-          "default": 500,
-          "description": "Interval between retries in milliseconds"
+          "default": 1000,
+          "description": "Interval between retries in milliseconds",
+          "scope": "window"
+        },
+        "symbolOpener.langDetectors": {
+          "type": "array",
+          "default": [
+            { "markers": ["tsconfig.json", "package.json"], "glob": "**/*.{ts,js}", "exclude": "**/node_modules/**" },
+            { "markers": ["go.mod"], "glob": "**/*.go", "exclude": "**/vendor/**" },
+            { "markers": ["Cargo.toml"], "glob": "**/*.rs", "exclude": "**/target/**" },
+            { "markers": ["pyproject.toml", "requirements.txt", "setup.py"], "glob": "**/*.py", "exclude": "**/.venv/**" },
+            { "markers": ["Gemfile"], "glob": "**/*.rb", "exclude": "**/vendor/**" },
+            { "markers": ["pom.xml", "build.gradle", "build.gradle.kts"], "glob": "**/*.java", "exclude": "**/target/**" }
+          ],
+          "description": "Language detectors for LSP activation. Each detector has: markers (files indicating language), glob (source file pattern), exclude (optional exclusion pattern)",
+          "scope": "window",
+          "items": {
+            "type": "object",
+            "properties": {
+              "markers": { "type": "array", "items": { "type": "string" } },
+              "glob": { "type": "string" },
+              "exclude": { "type": "string" }
+            },
+            "required": ["markers", "glob"]
+          }
+        },
+        "symbolOpener.logLevel": {
+          "type": "string",
+          "enum": ["debug", "info"],
+          "default": "info",
+          "description": "Log level: debug (show all logs), info (show only important messages)",
+          "scope": "window"
         }
       }
     }
@@ -50,7 +86,8 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "package": "vsce package",
-    "test": "node --import tsx --test src/test/*.test.ts"
+    "test": "node --import tsx --test src/test/*.test.ts",
+    "install:cursor": "npm run package && cursor --install-extension symbol-opener-0.0.1.vsix"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
