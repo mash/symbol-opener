@@ -333,9 +333,9 @@ describe('handleUri', () => {
 
     await processPendingUri();
 
-    // Should not process the URI, but should clear it since another window might handle it
+    // Should not process the URI (cwd doesn't match)
     assert.strictEqual((vscode.workspace.openTextDocument as any).mock.calls.length, 0);
-    // Keep the pending URI for other windows to process
-    assert.deepStrictEqual(globalState.get('pendingUri'), { symbol: 'Baz', cwd: '/other-project' });
+    // Pending URI should be cleared immediately after reading to prevent race conditions
+    assert.strictEqual(globalState.get('pendingUri'), undefined);
   });
 });

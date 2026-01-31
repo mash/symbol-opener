@@ -77,6 +77,11 @@ export function createHandler(deps: HandlerDeps) {
       return;
     }
 
+    // Clear immediately after reading to prevent race conditions
+    // where multiple windows could process the same pending URI
+    await globalState.update(PENDING_URI_KEY, undefined);
+    logger.debug('cleared pending URI');
+
     const { symbol, cwd, kind } = pending;
     logger.debug(`found pending URI: ${JSON.stringify(pending)}`);
 
@@ -91,9 +96,6 @@ export function createHandler(deps: HandlerDeps) {
       logger.debug(`cwd ${cwd} not in current workspace, skipping`);
       return;
     }
-
-    await globalState.update(PENDING_URI_KEY, undefined);
-    logger.debug('cleared pending URI');
 
     await openSymbol(symbol, kind);
   }
