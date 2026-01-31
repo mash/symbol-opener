@@ -38,6 +38,21 @@ function createMockUri(query: string) {
   return { query, toString: () => `cursor://mash.symbol-opener?${query}` } as any;
 }
 
+function createMockGlobalState() {
+  const store = new Map<string, unknown>();
+  return {
+    get: <T>(key: string): T | undefined => store.get(key) as T | undefined,
+    update: mock.fn(async (key: string, value: unknown) => {
+      if (value === undefined) {
+        store.delete(key);
+      } else {
+        store.set(key, value);
+      }
+    }),
+    _store: store,
+  };
+}
+
 const defaultConfig: Config = {
   multipleSymbolBehavior: 'first',
   workspaceNotOpenBehavior: 'new-window',
@@ -252,5 +267,102 @@ describe('handleUri', () => {
     const openCalls = (vscode.workspace.openTextDocument as any).mock.calls;
     assert.strictEqual(openCalls.length, 1);
     assert.strictEqual(openCalls[0].arguments[0].fsPath, '/project/b.ts');
+  });
+
+  it('saves pending URI to globalState when workspace not open', async () => {
+    const globalState = createMockGlobalState();
+    const vscode = createMockVSCode({
+      workspace: {
+        workspaceFolders: [{ uri: { fsPath: '/other' } }],
+        openTextDocument: mock.fn(async (uri: any) => ({ uri })),
+        getConfiguration: () => ({ get: <T>(_k: string, d: T) => d }),
+      },
+    });
+    const { handleUri } = createHandler({ vscode, getConfig: () => defaultConfig, logger: noopLogger, globalState });
+
+    await handleUri(createMockUri('symbol=Foo&cwd=/project&kind=Function'));
+
+    const pending = globalState.get<{ symbol: string; cwd: string; kind?: string }>('pendingUri');
+    assert.deepStrictEqual(pending, { symbol: 'Foo', cwd: '/project', kind: 'Function' });
+  });
+
+  it('does not save pending URI when behavior is error', async () => {
+    const globalState = createMockGlobalState();
+    const vscode = createMockVSCode({
+      workspace: {
+        workspaceFolders: [],
+        openTextDocument: mock.fn(async (uri: any) => ({ uri })),
+        getConfiguration: () => ({ get: <T>(_k: string, d: T) => d }),
+      },
+    });
+    const config = { ...defaultConfig, workspaceNotOpenBehavior: 'error' as const };
+    const { handleUri } = createHandler({ vscode, getConfig: () => config, logger: noopLogger, globalState });
+
+    await handleUri(createMockUri('symbol=Foo&cwd=/project'));
+
+    assert.strictEqual(globalState.get('pendingUri'), undefined);
+  });
+
+  it('processPendingUri resolves symbol from globalState and clears it', async () => {
+    const globalState = createMockGlobalState();
+    await globalState.update('pendingUri', { symbol: 'Bar', cwd: '/project' });
+
+    const location = {
+      uri: { fsPath: '/project/bar.ts', path: '/project/bar.ts' },
+      range: { start: { line: 5, character: 0 }, end: { line: 5, character: 3 } },
+    };
+    const vscode = createMockVSCode({
+      workspace: {
+        workspaceFolders: [{ uri: { fsPath: '/project' } }],
+        openTextDocument: mock.fn(async (uri: any) => ({ uri })),
+        getConfiguration: () => ({ get: <T>(_k: string, d: T) => d }),
+        findFiles: mock.fn(async () => []),
+      },
+      commands: {
+        executeCommand: mock.fn(async (cmd: string) => {
+          if (cmd === 'vscode.executeWorkspaceSymbolProvider') {
+            return [{ name: 'Bar', kind: SymbolKind.Function, location }];
+          }
+          return undefined;
+        }),
+      },
+    });
+    const { processPendingUri } = createHandler({ vscode, getConfig: () => defaultConfig, logger: noopLogger, globalState });
+
+    await processPendingUri();
+
+    assert.strictEqual((vscode.workspace.openTextDocument as any).mock.calls.length, 1);
+    assert.strictEqual(globalState.get('pendingUri'), undefined);
+  });
+
+  it('processPendingUri does nothing when no pending URI', async () => {
+    const globalState = createMockGlobalState();
+    const vscode = createMockVSCode();
+    const { processPendingUri } = createHandler({ vscode, getConfig: () => defaultConfig, logger: noopLogger, globalState });
+
+    await processPendingUri();
+
+    assert.strictEqual((vscode.workspace.openTextDocument as any).mock.calls.length, 0);
+  });
+
+  it('processPendingUri skips if cwd does not match current workspace', async () => {
+    const globalState = createMockGlobalState();
+    await globalState.update('pendingUri', { symbol: 'Baz', cwd: '/other-project' });
+
+    const vscode = createMockVSCode({
+      workspace: {
+        workspaceFolders: [{ uri: { fsPath: '/project' } }],
+        openTextDocument: mock.fn(async (uri: any) => ({ uri })),
+        getConfiguration: () => ({ get: <T>(_k: string, d: T) => d }),
+      },
+    });
+    const { processPendingUri } = createHandler({ vscode, getConfig: () => defaultConfig, logger: noopLogger, globalState });
+
+    await processPendingUri();
+
+    // Should not process the URI, but should clear it since another window might handle it
+    assert.strictEqual((vscode.workspace.openTextDocument as any).mock.calls.length, 0);
+    // Keep the pending URI for other windows to process
+    assert.deepStrictEqual(globalState.get('pendingUri'), { symbol: 'Baz', cwd: '/other-project' });
   });
 });

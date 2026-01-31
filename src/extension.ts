@@ -11,7 +11,10 @@ export function activate(context: vscode.ExtensionContext): void {
   const logger = createLogger(config.logLevel, msg => outputChannel.appendLine(msg));
   logger.info('Extension activated');
 
-  const { handleUri } = createHandler({ vscode, getConfig, logger });
+  const globalState = context.globalState;
+  const { handleUri, processPendingUri } = createHandler({ vscode, getConfig, logger, globalState });
+
+  processPendingUri();
 
   const uriHandler = vscode.window.registerUriHandler({
     async handleUri(uri: vscode.Uri) {
