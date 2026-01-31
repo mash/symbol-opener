@@ -62,6 +62,13 @@ export function getConfig(): Config {
   };
 }
 
+function formatTimestamp(): string {
+  const now = new Date();
+  const pad = (n: number, digits = 2) => n.toString().padStart(digits, '0');
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ` +
+    `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}.${pad(now.getMilliseconds(), 3)}`;
+}
+
 export function createLogger(
   logLevel: LogLevel,
   output: (message: string) => void
@@ -69,11 +76,11 @@ export function createLogger(
   return {
     debug: (message: string) => {
       if (logLevel === 'debug') {
-        output(`[DEBUG] ${message}`);
+        output(`${formatTimestamp()} [DEBUG] ${message}`);
       }
     },
     info: (message: string) => {
-      output(`[INFO] ${message}`);
+      output(`${formatTimestamp()} [INFO] ${message}`);
     },
   };
 }
