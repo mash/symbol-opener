@@ -33,3 +33,9 @@ export interface GlobalState {
   get<T>(key: string): T | undefined;
   update(key: string, value: unknown): Thenable<void>;
 }
+
+export interface PendingUri {
+  symbol: string;
+  cwd: string;
+  kind?: string;
+}

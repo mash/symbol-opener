@@ -19,7 +19,7 @@
     "onUri",
     "onStartupFinished"
   ],
-  "main": "./out/extension.js",
+  "main": "./out/activate.js",
   "contributes": {
     "configuration": {
       "title": "Symbol Opener",
