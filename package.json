@@ -78,6 +78,13 @@
           "default": "info",
           "description": "Log level: debug (show all logs), info (show only important messages)",
           "scope": "window"
+        },
+        "symbolOpener.symbolSortPriority": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": ["Class", "Interface", "Struct", "Function", "Method", "Constructor", "Constant", "Property", "Field", "Enum", "Variable"],
+          "description": "Priority order for sorting symbol search results by SymbolKind. Symbols with kinds listed earlier appear first.",
+          "scope": "window"
         }
       }
     }

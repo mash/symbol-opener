@@ -3,6 +3,59 @@ import type { Config, LangDetector, Logger } from './config';
 import type { VSCodeAPI } from './vscode-api';
 import { parseSymbolKind } from './symbol-kind';
 
+// Sorts symbols by SymbolKind priority.
+// Priority array index determines sort order: index 0 = highest priority.
+// Kinds not in priority list are sorted to the end.
+export function sortByKindPriority(
+  symbols: vscode.SymbolInformation[],
+  priority: string[],
+  SymbolKind: typeof vscode.SymbolKind
+): vscode.SymbolInformation[] {
+  const kindNameToEnum: Record<string, number> = {
+    File: SymbolKind.File,
+    Module: SymbolKind.Module,
+    Namespace: SymbolKind.Namespace,
+    Package: SymbolKind.Package,
+    Class: SymbolKind.Class,
+    Method: SymbolKind.Method,
+    Property: SymbolKind.Property,
+    Field: SymbolKind.Field,
+    Constructor: SymbolKind.Constructor,
+    Enum: SymbolKind.Enum,
+    Interface: SymbolKind.Interface,
+    Function: SymbolKind.Function,
+    Variable: SymbolKind.Variable,
+    Constant: SymbolKind.Constant,
+    String: SymbolKind.String,
+    Number: SymbolKind.Number,
+    Boolean: SymbolKind.Boolean,
+    Array: SymbolKind.Array,
+    Object: SymbolKind.Object,
+    Key: SymbolKind.Key,
+    Null: SymbolKind.Null,
+    EnumMember: SymbolKind.EnumMember,
+    Struct: SymbolKind.Struct,
+    Event: SymbolKind.Event,
+    Operator: SymbolKind.Operator,
+    TypeParameter: SymbolKind.TypeParameter,
+  };
+
+  const priorityMap = new Map<number, number>();
+  for (const name of priority) {
+    const kind = kindNameToEnum[name];
+    if (kind === undefined) {
+      throw new Error(`Invalid SymbolKind in symbolSortPriority: "${name}"`);
+    }
+    priorityMap.set(kind, priorityMap.size);
+  }
+
+  return [...symbols].sort((a, b) => {
+    const aPriority = priorityMap.get(a.kind) ?? Infinity;
+    const bPriority = priorityMap.get(b.kind) ?? Infinity;
+    return aPriority - bPriority;
+  });
+}
+
 export interface SymbolResolverDeps {
   vscode: VSCodeAPI;
   getConfig: () => Config;
@@ -138,12 +191,14 @@ export function createSymbolResolver(deps: SymbolResolverDeps) {
       return undefined;
     }
 
-    if (symbols.length === 1 || config.multipleSymbolBehavior === 'first') {
-      return symbols[0];
+    const sorted = sortByKindPriority(symbols, config.symbolSortPriority, vscode.SymbolKind);
+
+    if (sorted.length === 1 || config.multipleSymbolBehavior === 'first') {
+      return sorted[0];
     }
 
     if (config.multipleSymbolBehavior === 'quickpick') {
-      const items = symbols.map(s => ({
+      const items = sorted.map(s => ({
         label: s.name,
         description: s.containerName,
         detail: s.location.uri.fsPath,
@@ -157,7 +212,7 @@ export function createSymbolResolver(deps: SymbolResolverDeps) {
       return selected?.symbol;
     }
 
-    return symbols[0];
+    return sorted[0];
   }
 
   async function activateLsp(langDetectors: LangDetector[]): Promise<void> {
@@ -182,7 +237,15 @@ export function createSymbolResolver(deps: SymbolResolverDeps) {
     await activateLsp(config.langDetectors);
 
     logger.info(`resolving symbol: ${symbol}${kind ? `, kind: ${kind}` : ''}`);
-    const resolved = await resolveSymbol(symbol, kind);
+    let resolved;
+    try {
+      resolved = await resolveSymbol(symbol, kind);
+    } catch (e) {
+      if (e instanceof Error) {
+        await vscode.window.showErrorMessage(e.message);
+      }
+      return;
+    }
     if (resolved) {
       const { location } = resolved;
       logger.info(`found: ${location.uri.fsPath}:${location.range.start.line}`);

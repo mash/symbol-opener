@@ -1,6 +1,7 @@
 import { describe, it, mock } from 'node:test';
 import assert from 'node:assert';
 import { createHandler } from '../handler';
+import { sortByKindPriority } from '../symbol-resolver';
 import type { Config, Logger } from '../config';
 import type { VSCodeAPI } from '../vscode-api';
 
@@ -60,6 +61,7 @@ const defaultConfig: Config = {
   retryInterval: 0,
   langDetectors: [],
   logLevel: 'info',
+  symbolSortPriority: ['Class', 'Interface', 'Struct', 'Function', 'Method', 'Constructor', 'Constant', 'Property', 'Field', 'Enum', 'Variable'],
 };
 
 const noop = () => {};
@@ -428,5 +430,141 @@ describe('handleUri', () => {
 
     // Should retry 3 times (retryCount) with 2 query transforms each = 6 calls
     assert.strictEqual(executeCount, 6);
+  });
+
+  it('sorts symbols by kind priority with first behavior', async () => {
+    const mockRange = { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } };
+    const fnLocation = { uri: { fsPath: '/project/fn.ts' }, range: mockRange };
+    const classLocation = { uri: { fsPath: '/project/class.ts' }, range: mockRange };
+    const vscode = createMockVSCode({
+      commands: {
+        executeCommand: mock.fn(async (cmd: string) => {
+          if (cmd === 'vscode.executeWorkspaceSymbolProvider') {
+            return [
+              { name: 'Foo', kind: SymbolKind.Function, location: fnLocation },
+              { name: 'Foo', kind: SymbolKind.Class, location: classLocation },
+            ];
+          }
+          return undefined;
+        }),
+      },
+    });
+    const { handleUri } = createHandler({ vscode, getConfig: () => defaultConfig, logger: noopLogger });
+
+    await handleUri(createMockUri('symbol=Foo&cwd=/project'));
+
+    const openCalls = (vscode.workspace.openTextDocument as any).mock.calls;
+    assert.strictEqual(openCalls.length, 1);
+    assert.strictEqual(openCalls[0].arguments[0].fsPath, '/project/class.ts');
+  });
+
+  it('sorts quickpick items by kind priority', async () => {
+    const mockRange = { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } };
+    const fnLocation = { uri: { fsPath: '/project/fn.ts' }, range: mockRange };
+    const classLocation = { uri: { fsPath: '/project/class.ts' }, range: mockRange };
+    let quickPickItems: any[] = [];
+    const vscode = createMockVSCode({
+      commands: {
+        executeCommand: mock.fn(async (cmd: string) => {
+          if (cmd === 'vscode.executeWorkspaceSymbolProvider') {
+            return [
+              { name: 'Foo', kind: SymbolKind.Function, location: fnLocation },
+              { name: 'Foo', kind: SymbolKind.Class, location: classLocation },
+            ];
+          }
+          return undefined;
+        }),
+      },
+      window: {
+        showTextDocument: mock.fn(async () => ({ selection: null, revealRange: () => {} })),
+        showErrorMessage: mock.fn(async () => undefined),
+        showQuickPick: mock.fn(async (items: any[]) => {
+          quickPickItems = items;
+          return items[0];
+        }),
+      },
+    });
+    const config = { ...defaultConfig, multipleSymbolBehavior: 'quickpick' as const };
+    const { handleUri } = createHandler({ vscode, getConfig: () => config, logger: noopLogger });
+
+    await handleUri(createMockUri('symbol=Foo&cwd=/project'));
+
+    assert.strictEqual(quickPickItems[0].detail, '/project/class.ts');
+    assert.strictEqual(quickPickItems[1].detail, '/project/fn.ts');
+  });
+
+  it('shows error when symbolSortPriority contains invalid kind name', async () => {
+    const mockRange = { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } };
+    const location = { uri: { fsPath: '/project/foo.ts' }, range: mockRange };
+    const vscode = createMockVSCode({
+      commands: {
+        executeCommand: mock.fn(async (cmd: string) => {
+          if (cmd === 'vscode.executeWorkspaceSymbolProvider') {
+            return [{ name: 'Foo', kind: SymbolKind.Function, location }];
+          }
+          return undefined;
+        }),
+      },
+    });
+    const config = { ...defaultConfig, symbolSortPriority: ['InvalidKind', 'Function'] };
+    const { handleUri } = createHandler({ vscode, getConfig: () => config, logger: noopLogger });
+
+    await handleUri(createMockUri('symbol=Foo&cwd=/project'));
+
+    const calls = (vscode.window.showErrorMessage as any).mock.calls;
+    assert.strictEqual(calls.length, 1);
+    assert.match(calls[0].arguments[0], /Invalid SymbolKind.*InvalidKind/);
+  });
+});
+
+describe('sortByKindPriority', () => {
+  it('sorts symbols by priority order', () => {
+    const mockRange = { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } };
+    const symbols = [
+      { name: 'A', kind: SymbolKind.Variable, location: { uri: { fsPath: '/a.ts' }, range: mockRange } },
+      { name: 'B', kind: SymbolKind.Class, location: { uri: { fsPath: '/b.ts' }, range: mockRange } },
+      { name: 'C', kind: SymbolKind.Function, location: { uri: { fsPath: '/c.ts' }, range: mockRange } },
+    ] as any[];
+
+    const sorted = sortByKindPriority(symbols, ['Class', 'Function', 'Variable'], SymbolKind as any);
+
+    assert.strictEqual(sorted[0].name, 'B');
+    assert.strictEqual(sorted[1].name, 'C');
+    assert.strictEqual(sorted[2].name, 'A');
+  });
+
+  it('puts kinds not in priority list at the end', () => {
+    const mockRange = { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } };
+    const symbols = [
+      { name: 'A', kind: SymbolKind.Enum, location: { uri: { fsPath: '/a.ts' }, range: mockRange } },
+      { name: 'B', kind: SymbolKind.Class, location: { uri: { fsPath: '/b.ts' }, range: mockRange } },
+    ] as any[];
+
+    const sorted = sortByKindPriority(symbols, ['Class'], SymbolKind as any);
+
+    assert.strictEqual(sorted[0].name, 'B');
+    assert.strictEqual(sorted[1].name, 'A');
+  });
+
+  it('throws error for invalid kind name', () => {
+    const symbols = [] as any[];
+
+    assert.throws(
+      () => sortByKindPriority(symbols, ['InvalidKind'], SymbolKind as any),
+      /Invalid SymbolKind.*InvalidKind/
+    );
+  });
+
+  it('does not mutate original array', () => {
+    const mockRange = { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } };
+    const symbols = [
+      { name: 'A', kind: SymbolKind.Variable, location: { uri: { fsPath: '/a.ts' }, range: mockRange } },
+      { name: 'B', kind: SymbolKind.Class, location: { uri: { fsPath: '/b.ts' }, range: mockRange } },
+    ] as any[];
+
+    sortByKindPriority(symbols, ['Class', 'Variable'], SymbolKind as any);
+
+    assert.strictEqual(symbols[0].name, 'A');
+    assert.strictEqual(symbols[1].name, 'B');
   });
 });

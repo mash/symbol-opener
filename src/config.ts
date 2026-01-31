@@ -37,6 +37,12 @@ export const defaultLangDetectors: LangDetector[] = [
   { markers: ['pom.xml', 'build.gradle', 'build.gradle.kts'], glob: '**/*.java', exclude: '**/target/**' },
 ];
 
+// Default sort priority: type definitions first, then functions/methods.
+export const defaultSymbolSortPriority: string[] = [
+  'Class', 'Interface', 'Struct', 'Function', 'Method', 'Constructor',
+  'Constant', 'Property', 'Field', 'Enum', 'Variable',
+];
+
 export interface Config {
   multipleSymbolBehavior: MultipleSymbolBehavior;
   workspaceNotOpenBehavior: WorkspaceNotOpenBehavior;
@@ -44,6 +50,7 @@ export interface Config {
   retryInterval: number;
   langDetectors: LangDetector[];
   logLevel: LogLevel;
+  symbolSortPriority: string[];
 }
 
 export function getConfig(): Config {
@@ -56,6 +63,7 @@ export function getConfig(): Config {
     retryInterval: config.get<number>('retryInterval', 500),
     langDetectors: config.get<LangDetector[]>('langDetectors', defaultLangDetectors),
     logLevel: config.get<LogLevel>('logLevel', 'info'),
+    symbolSortPriority: config.get<string[]>('symbolSortPriority', defaultSymbolSortPriority),
   };
 }
 
