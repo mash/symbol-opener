@@ -53,6 +53,13 @@ LSP servers only start after opening a file of that language. `langDetectors` co
 | `glob`    | Pattern to find source files to open             |
 | `exclude` | Pattern to exclude (e.g., `**/node_modules/**`)  |
 
+## Viewing Logs
+
+1. Open the Output panel: **View → Output** (or `Cmd+Shift+U`)
+2. Select **"Symbol Opener"** from the dropdown in the top-right corner
+3. Set `symbolOpener.logLevel` to `debug` in Settings (`Cmd+,`) for detailed logs
+4. **Reload the window** (`Cmd+Shift+P` → `Developer: Reload Window`) after changing log level
+
 ## Build
 
 ```bash

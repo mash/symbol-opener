@@ -81,10 +81,16 @@ export function createHandler(deps: HandlerDeps) {
 
     logger.debug(`raw results: ${JSON.stringify(symbols.map(s => ({ name: s.name, kind: s.kind })))}`);
 
-    // LSP returns fuzzy matches and may append () for functions. Filter to exact base name.
+    // LSP returns fuzzy matches. Normalize names before comparing:
+    // - TypeScript appends () for functions: createHandler() → createHandler
+    // - Go prefixes type for methods: Linker.buildSymbolPattern → buildSymbolPattern
     symbols = symbols.filter(s => {
-      const baseName = s.name.replace(/\(\)$/, '');
-      return baseName === symbolName;
+      let name = s.name.replace(/\(\)$/, '');
+      const dotIndex = name.lastIndexOf('.');
+      if (dotIndex !== -1) {
+        name = name.substring(dotIndex + 1);
+      }
+      return name === symbolName;
     });
 
     if (kind) {

@@ -130,6 +130,29 @@ describe('handleUri', () => {
     assert.strictEqual((vscode.window.showTextDocument as any).mock.calls.length, 1);
   });
 
+  it('resolves Go method with Type.method format', async () => {
+    const location = {
+      uri: { fsPath: '/project/linker.go', path: '/project/linker.go' },
+      range: { start: { line: 293, character: 0 }, end: { line: 293, character: 20 } },
+    };
+    const vscode = createMockVSCode({
+      commands: {
+        executeCommand: mock.fn(async (cmd: string) => {
+          if (cmd === 'vscode.executeWorkspaceSymbolProvider') {
+            return [{ name: 'Linker.buildSymbolPattern', kind: SymbolKind.Method, location }];
+          }
+          return undefined;
+        }),
+      },
+    });
+    const { handleUri } = createHandler({ vscode, getConfig: () => defaultConfig, logger: noopLogger });
+
+    await handleUri(createMockUri('symbol=buildSymbolPattern&cwd=/project'));
+
+    assert.strictEqual((vscode.workspace.openTextDocument as any).mock.calls.length, 1);
+    assert.strictEqual((vscode.window.showTextDocument as any).mock.calls.length, 1);
+  });
+
   it('filters by kind when provided', async () => {
     const mockRange = { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } };
     const fnLocation = { uri: { fsPath: '/project/fn.ts' }, range: mockRange };
