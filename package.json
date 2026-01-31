@@ -58,12 +58,12 @@
         "symbolOpener.langDetectors": {
           "type": "array",
           "default": [
-            { "markers": ["tsconfig.json", "package.json"], "glob": "**/*.{ts,js}", "exclude": "**/node_modules/**" },
             { "markers": ["go.mod"], "glob": "**/*.go", "exclude": "**/vendor/**" },
             { "markers": ["Cargo.toml"], "glob": "**/*.rs", "exclude": "**/target/**" },
             { "markers": ["pyproject.toml", "requirements.txt", "setup.py"], "glob": "**/*.py", "exclude": "**/.venv/**" },
             { "markers": ["Gemfile"], "glob": "**/*.rb", "exclude": "**/vendor/**" },
-            { "markers": ["pom.xml", "build.gradle", "build.gradle.kts"], "glob": "**/*.java", "exclude": "**/target/**" }
+            { "markers": ["pom.xml", "build.gradle", "build.gradle.kts"], "glob": "**/*.java", "exclude": "**/target/**" },
+            { "markers": ["tsconfig.json", "package.json"], "glob": "**/*.{ts,js}", "exclude": "**/node_modules/**" }
           ],
           "description": "Language detectors for LSP activation. Each detector has: markers (files indicating language), glob (source file pattern), exclude (optional exclusion pattern)",
           "scope": "window",
