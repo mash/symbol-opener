@@ -1,0 +1,57 @@
+{
+  "name": "symbol-opener",
+  "displayName": "Symbol Opener",
+  "description": "Opens symbol definitions via URI handler for osc8wrap",
+  "version": "0.0.1",
+  "publisher": "mash",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "activationEvents": [
+    "onUri"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "configuration": {
+      "title": "Symbol Opener",
+      "properties": {
+        "symbolOpener.multipleSymbolBehavior": {
+          "type": "string",
+          "enum": ["first", "quickpick", "workspace-priority"],
+          "default": "first",
+          "description": "Behavior when multiple symbols match: first (use first result), quickpick (show picker), workspace-priority (prefer current workspace)"
+        },
+        "symbolOpener.workspaceNotOpenBehavior": {
+          "type": "string",
+          "enum": ["new-window", "current-window", "error"],
+          "default": "new-window",
+          "description": "Behavior when the workspace is not open: new-window (open in new window), current-window (open in current window), error (show error)"
+        },
+        "symbolOpener.retryCount": {
+          "type": "number",
+          "default": 5,
+          "description": "Number of retries when waiting for LSP to be ready"
+        },
+        "symbolOpener.retryInterval": {
+          "type": "number",
+          "default": 500,
+          "description": "Interval between retries in milliseconds"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package",
+    "test": "node --import tsx --test src/test/*.test.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.80.0",
+    "@vscode/vsce": "^3.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0"
+  }
+}
