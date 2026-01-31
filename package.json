@@ -3,7 +3,12 @@
   "displayName": "Symbol Opener",
   "description": "Opens symbol definitions via URI handler for osc8wrap",
   "version": "0.0.1",
+  "license": "MIT",
   "publisher": "mash",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mash/symbol-opener"
+  },
   "engines": {
     "vscode": "^1.80.0"
   },
