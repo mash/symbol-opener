@@ -22,6 +22,16 @@ cursor://mash.symbol-opener?symbol=createHandler&cwd=/path/to/project&kind=Funct
 open "cursor://mash.symbol-opener?symbol=createHandler&cwd=/Users/mash/src/github.com/mash/symbol-opener"
 ```
 
+## How This Works
+
+1. **URI Handling** - Receives `cursor://mash.symbol-opener?...` URI. If the target workspace (`cwd`) is not open, opens it in a new window (configurable via `workspaceNotOpenBehavior`) and coordinates between windows using filesystem-based message passing.
+
+2. **LSP Activation** - VS Code's LSP servers only start after opening a file of that language. The extension detects the project language by looking for marker files (`go.mod`, `tsconfig.json`, `Cargo.toml`, etc.), then opens a matching source file in the background to trigger LSP startup.
+
+3. **Symbol Resolution** - Queries the LSP for symbols matching the requested name. Since LSP may still be indexing, retries up to `retryCount` times with `retryInterval` delay. When multiple symbols match, sorts results using `symbolSortPriority` (preferring exported/public symbols by default) and selects based on `multipleSymbolBehavior`. If no exact match is found, shows fuzzy matches in a QuickPick for manual selection.
+
+4. **Opening** - Navigates to the symbol's location and reveals it in the editor.
+
 ## Configuration
 
 | Setting                                 | Default      | Description                                                                                                |
