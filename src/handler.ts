@@ -1,11 +1,18 @@
 import type * as vscode from 'vscode';
 import type { Config, LangDetector, Logger } from './config';
-import type { VSCodeAPI } from './vscode-api';
+import type { GlobalState, VSCodeAPI } from './vscode-api';
+
+export interface PendingUri {
+  symbol: string;
+  cwd: string;
+  kind?: string;
+}
 
 export interface HandlerDeps {
   vscode: VSCodeAPI;
   getConfig: () => Config;
   logger: Logger;
+  globalState?: GlobalState;
 }
 
 function parseSymbolKind(
@@ -43,8 +50,10 @@ function parseSymbolKind(
   return kindMap[kind];
 }
 
+const PENDING_URI_KEY = 'pendingUri';
+
 export function createHandler(deps: HandlerDeps) {
-  const { vscode, getConfig, logger } = deps;
+  const { vscode, getConfig, logger, globalState } = deps;
 
   // Query transforms to try for workspace symbol search.
   // TypeScript LSP requires # prefix; others work with plain name.
@@ -210,15 +219,41 @@ export function createHandler(deps: HandlerDeps) {
         return;
       }
 
-      // Opening folder triggers extension reload. The new window receives the same URI,
-      // so handleUri runs again with workspace now open.
+      // Save URI params to globalState so the new window can process it on startup
+      if (globalState) {
+        const pendingUri: PendingUri = { symbol, cwd, kind };
+        await globalState.update(PENDING_URI_KEY, pendingUri);
+        logger.debug(`saved pending URI: ${JSON.stringify(pendingUri)}`);
+      }
+
       await vscode.commands.executeCommand('vscode.openFolder', folderUri, {
         forceNewWindow: config.workspaceNotOpenBehavior === 'new-window',
       });
       return;
     }
 
-    // Detect language from project files and open a source file to trigger LSP
+    await openSymbol(symbol, kind);
+  }
+
+  async function activateLsp(langDetectors: LangDetector[]): Promise<void> {
+    for (const { markers, glob, exclude } of langDetectors) {
+      for (const marker of markers) {
+        const markerFiles = await vscode.workspace.findFiles(marker, undefined, 1);
+        if (markerFiles && markerFiles.length > 0) {
+          const sourceFiles = await vscode.workspace.findFiles(glob, exclude, 1);
+          if (sourceFiles && sourceFiles.length > 0) {
+            // openTextDocument loads the file without showing it in the editor
+            await vscode.workspace.openTextDocument(sourceFiles[0]);
+            logger.debug(`detected ${marker}, opened ${sourceFiles[0].fsPath} to trigger LSP`);
+          }
+          return;
+        }
+      }
+    }
+  }
+
+  async function openSymbol(symbol: string, kind?: string): Promise<void> {
+    const config = getConfig();
     await activateLsp(config.langDetectors);
 
     logger.info(`resolving symbol: ${symbol}${kind ? `, kind: ${kind}` : ''}`);
@@ -239,22 +274,40 @@ export function createHandler(deps: HandlerDeps) {
     }
   }
 
-  async function activateLsp(langDetectors: LangDetector[]): Promise<void> {
-    for (const { markers, glob, exclude } of langDetectors) {
-      for (const marker of markers) {
-        const markerFiles = await vscode.workspace.findFiles(marker, undefined, 1);
-        if (markerFiles && markerFiles.length > 0) {
-          const sourceFiles = await vscode.workspace.findFiles(glob, exclude, 1);
-          if (sourceFiles && sourceFiles.length > 0) {
-            // openTextDocument loads the file without showing it in the editor
-            await vscode.workspace.openTextDocument(sourceFiles[0]);
-            logger.debug(`detected ${marker}, opened ${sourceFiles[0].fsPath} to trigger LSP`);
-          }
-          return;
-        }
-      }
+  // Called on extension activation to handle URIs saved by another window.
+  // When a URI targets a workspace not open in the current window, handleUri saves
+  // the URI params to globalState and opens the workspace in a new window.
+  // This function runs in the new window to complete the symbol resolution.
+  async function processPendingUri(): Promise<void> {
+    if (!globalState) {
+      return;
     }
+
+    const pending = globalState.get<PendingUri>(PENDING_URI_KEY);
+    if (!pending) {
+      return;
+    }
+
+    const { symbol, cwd, kind } = pending;
+    logger.debug(`found pending URI: ${JSON.stringify(pending)}`);
+
+    // Only process if this window has the target workspace open.
+    // Other windows may also receive onStartupFinished, so we skip if cwd doesn't match.
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    const isWorkspaceOpen = workspaceFolders?.some(
+      folder => folder.uri.fsPath === cwd
+    );
+
+    if (!isWorkspaceOpen) {
+      logger.debug(`cwd ${cwd} not in current workspace, skipping`);
+      return;
+    }
+
+    await globalState.update(PENDING_URI_KEY, undefined);
+    logger.debug('cleared pending URI');
+
+    await openSymbol(symbol, kind);
   }
 
-  return { handleUri, resolveSymbol };
+  return { handleUri, resolveSymbol, processPendingUri };
 }

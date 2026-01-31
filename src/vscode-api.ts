@@ -28,3 +28,8 @@ export interface VSCodeAPI {
   Selection: typeof vscode.Selection;
   TextEditorRevealType: typeof vscode.TextEditorRevealType;
 }
+
+export interface GlobalState {
+  get<T>(key: string): T | undefined;
+  update(key: string, value: unknown): Thenable<void>;
+}
