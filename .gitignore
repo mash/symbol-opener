@@ -4,3 +4,4 @@ dist/
 *.vsix
 
 docs/plans/
+.worktrees/
