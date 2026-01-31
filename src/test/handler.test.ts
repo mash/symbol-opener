@@ -209,33 +209,6 @@ describe('handleUri', () => {
     assert.match(calls[0].arguments[0], /not found/);
   });
 
-  it('prefers workspace symbol over external with workspace-priority', async () => {
-    const mockRange = { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } };
-    const workspaceLocation = { uri: { fsPath: '/project/src/foo.ts' }, range: mockRange };
-    const externalLocation = { uri: { fsPath: '/other/node_modules/foo.ts' }, range: mockRange };
-    const vscode = createMockVSCode({
-      commands: {
-        executeCommand: mock.fn(async (cmd: string) => {
-          if (cmd === 'vscode.executeWorkspaceSymbolProvider') {
-            return [
-              { name: 'Foo', kind: SymbolKind.Function, location: externalLocation },
-              { name: 'Foo', kind: SymbolKind.Function, location: workspaceLocation },
-            ];
-          }
-          return undefined;
-        }),
-      },
-    });
-    const config = { ...defaultConfig, multipleSymbolBehavior: 'workspace-priority' as const };
-    const { handleUri } = createHandler({ vscode, getConfig: () => config, logger: noopLogger });
-
-    await handleUri(createMockUri('symbol=Foo&cwd=/project'));
-
-    const openCalls = (vscode.workspace.openTextDocument as any).mock.calls;
-    assert.strictEqual(openCalls.length, 1);
-    assert.strictEqual(openCalls[0].arguments[0].fsPath, '/project/src/foo.ts');
-  });
-
   it('shows quickpick when multiple symbols and behavior is quickpick', async () => {
     const mockRange = { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } };
     const location1 = { uri: { fsPath: '/project/a.ts' }, range: mockRange };

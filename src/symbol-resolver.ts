@@ -121,24 +121,6 @@ export function createSymbolResolver(deps: SymbolResolverDeps) {
       return selected?.symbol;
     }
 
-    if (config.multipleSymbolBehavior === 'workspace-priority') {
-      // Iterate workspace folders in user-defined order (first folder = highest priority).
-      // Return first symbol found in any workspace folder. Falls back to first result
-      // if symbol exists only in external dependencies (node_modules, vendor, etc.).
-      const workspaceFolders = vscode.workspace.workspaceFolders;
-      if (workspaceFolders) {
-        for (const folder of workspaceFolders) {
-          const match = symbols.find(s =>
-            s.location.uri.fsPath.startsWith(folder.uri.fsPath)
-          );
-          if (match) {
-            return match;
-          }
-        }
-      }
-      return symbols[0];
-    }
-
     return symbols[0];
   }
 

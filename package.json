@@ -26,9 +26,9 @@
       "properties": {
         "symbolOpener.multipleSymbolBehavior": {
           "type": "string",
-          "enum": ["first", "quickpick", "workspace-priority"],
+          "enum": ["first", "quickpick"],
           "default": "first",
-          "description": "Behavior when multiple symbols match: first (use first result), quickpick (show picker), workspace-priority (prefer current workspace)",
+          "description": "Behavior when multiple symbols match: first (use first result), quickpick (show picker)",
           "scope": "window"
         },
         "symbolOpener.workspaceNotOpenBehavior": {

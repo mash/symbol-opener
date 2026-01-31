@@ -26,7 +26,7 @@ open "cursor://mash.symbol-opener?symbol=createHandler&cwd=/Users/mash/src/githu
 
 | Setting                                 | Default      | Description                                                                                                |
 | --------------------------------------- | ------------ | ---------------------------------------------------------------------------------------------------------- |
-| `symbolOpener.multipleSymbolBehavior`   | `first`      | `first`: use first match, `quickpick`: show picker, `workspace-priority`: prefer current workspace folders |
+| `symbolOpener.multipleSymbolBehavior`   | `first`      | `first`: use first match, `quickpick`: show picker                                                         |
 | `symbolOpener.workspaceNotOpenBehavior` | `new-window` | `new-window`: open in new window, `current-window`: replace current, `error`: show error                   |
 | `symbolOpener.retryCount`               | `10`         | LSP retry count (LSP may need time to index)                                                               |
 | `symbolOpener.retryInterval`            | `500`        | Retry interval in ms                                                                                       |

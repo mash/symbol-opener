@@ -2,10 +2,7 @@ import * as vscode from 'vscode';
 
 // 'first': Use the first match. Fast, but may open wrong symbol if duplicates exist.
 // 'quickpick': Show picker when multiple matches. Interactive but interrupts flow.
-// 'workspace-priority': Prefer symbols in current workspace folders (in order).
-//   Iterates workspace folders and returns first symbol whose path starts with folder path.
-//   Useful for monorepos where same symbol name exists in multiple packages.
-export type MultipleSymbolBehavior = 'first' | 'quickpick' | 'workspace-priority';
+export type MultipleSymbolBehavior = 'first' | 'quickpick';
 
 // 'new-window': Open workspace in new window, URI handler re-triggers in new window.
 // 'current-window': Replace current workspace. Loses current context.
