@@ -9,6 +9,11 @@ export interface SymbolResolverDeps {
   logger: Logger;
 }
 
+interface ResolveResult {
+  symbol?: vscode.SymbolInformation;
+  fuzzyMatches: vscode.SymbolInformation[];
+}
+
 export function createSymbolResolver(deps: SymbolResolverDeps) {
   const { vscode, getConfig, logger } = deps;
 
@@ -39,10 +44,10 @@ export function createSymbolResolver(deps: SymbolResolverDeps) {
   async function tryResolveSymbol(
     symbolName: string,
     kind?: string
-  ): Promise<vscode.SymbolInformation | undefined> {
-    let symbols = await findSymbols(symbolName);
+  ): Promise<ResolveResult> {
+    const symbols = await findSymbols(symbolName);
     if (symbols.length === 0) {
-      return undefined;
+      return { fuzzyMatches: [] };
     }
 
     logger.debug(`raw results: ${JSON.stringify(symbols.map(s => ({ name: s.name, kind: s.kind })))}`);
@@ -50,7 +55,7 @@ export function createSymbolResolver(deps: SymbolResolverDeps) {
     // LSP returns fuzzy matches. Normalize names before comparing:
     // - TypeScript appends () for functions: createHandler() → createHandler
     // - Go prefixes type for methods: Linker.buildSymbolPattern → buildSymbolPattern
-    symbols = symbols.filter(s => {
+    let exactMatches = symbols.filter(s => {
       let name = s.name.replace(/\(\)$/, '');
       const dotIndex = name.lastIndexOf('.');
       if (dotIndex !== -1) {
@@ -62,15 +67,24 @@ export function createSymbolResolver(deps: SymbolResolverDeps) {
     if (kind) {
       const kindEnum = parseSymbolKind(kind, vscode.SymbolKind);
       if (kindEnum !== undefined) {
-        symbols = symbols.filter(s => s.kind === kindEnum);
+        exactMatches = exactMatches.filter(s => s.kind === kindEnum);
       }
     }
 
-    if (symbols.length === 0) {
-      return undefined;
+    if (exactMatches.length > 0) {
+      const symbol = await selectSymbol(exactMatches, getConfig());
+      return { symbol, fuzzyMatches: [] };
     }
 
-    return selectSymbol(symbols, getConfig());
+    // No exact match, return symbols as fuzzy matches (filtered by kind if specified)
+    let fuzzyMatches = symbols;
+    if (kind) {
+      const kindEnum = parseSymbolKind(kind, vscode.SymbolKind);
+      if (kindEnum !== undefined) {
+        fuzzyMatches = fuzzyMatches.filter(s => s.kind === kindEnum);
+      }
+    }
+    return { fuzzyMatches };
   }
 
   async function resolveSymbol(
@@ -83,15 +97,37 @@ export function createSymbolResolver(deps: SymbolResolverDeps) {
     for (let attempt = 0; attempt < config.retryCount; attempt++) {
       logger.debug(`attempt ${attempt + 1}/${config.retryCount}`);
 
-      const symbol = await tryResolveSymbol(symbolName, kind);
-      if (symbol) {
-        return symbol;
+      const result = await tryResolveSymbol(symbolName, kind);
+      if (result.symbol) {
+        return result.symbol;
+      }
+
+      if (result.fuzzyMatches.length > 0) {
+        // LSP is working but no exact match - show fuzzy matches in quickpick
+        return selectFuzzyMatch(result.fuzzyMatches);
       }
 
       await new Promise(resolve => setTimeout(resolve, config.retryInterval));
     }
 
     return undefined;
+  }
+
+  async function selectFuzzyMatch(
+    symbols: vscode.SymbolInformation[]
+  ): Promise<vscode.SymbolInformation | undefined> {
+    const items = symbols.map(s => ({
+      label: s.name,
+      description: s.containerName,
+      detail: s.location.uri.fsPath,
+      symbol: s,
+    }));
+
+    const selected = await vscode.window.showQuickPick(items, {
+      placeHolder: 'No exact match found. Select a similar symbol:',
+    });
+
+    return selected?.symbol;
   }
 
   async function selectSymbol(

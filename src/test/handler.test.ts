@@ -338,4 +338,95 @@ describe('handleUri', () => {
     // Pending URI should be cleared immediately after reading to prevent race conditions
     assert.strictEqual(globalState.get('pendingUri'), undefined);
   });
+
+  it('shows quickpick for fuzzy matches when no exact match', async () => {
+    const mockRange = { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } };
+    const location1 = { uri: { fsPath: '/project/corpus.ts' }, range: mockRange };
+    const location2 = { uri: { fsPath: '/project/csv.ts' }, range: mockRange };
+    const vscode = createMockVSCode({
+      commands: {
+        executeCommand: mock.fn(async (cmd: string) => {
+          if (cmd === 'vscode.executeWorkspaceSymbolProvider') {
+            // LSP returns fuzzy matches but none match "includeCSV" exactly
+            return [
+              { name: 'IncludeCorpusRemovals', kind: SymbolKind.Function, location: location1 },
+              { name: 'IncludeCsvHeader', kind: SymbolKind.Function, location: location2 },
+            ];
+          }
+          return undefined;
+        }),
+      },
+      window: {
+        showTextDocument: mock.fn(async () => ({ selection: null, revealRange: () => {} })),
+        showErrorMessage: mock.fn(async () => undefined),
+        showQuickPick: mock.fn(async (items: any[]) => items[0]),
+      },
+    });
+    const { handleUri } = createHandler({ vscode, getConfig: () => defaultConfig, logger: noopLogger });
+
+    await handleUri(createMockUri('symbol=includeCSV&cwd=/project'));
+
+    // Should show quickpick with fuzzy matches
+    const quickPickCalls = (vscode.window.showQuickPick as any).mock.calls;
+    assert.strictEqual(quickPickCalls.length, 1);
+    assert.strictEqual(quickPickCalls[0].arguments[1].placeHolder, 'No exact match found. Select a similar symbol:');
+
+    // Should open the selected symbol
+    const openCalls = (vscode.workspace.openTextDocument as any).mock.calls;
+    assert.strictEqual(openCalls.length, 1);
+    assert.strictEqual(openCalls[0].arguments[0].fsPath, '/project/corpus.ts');
+  });
+
+  it('does not retry when LSP returns fuzzy matches but no exact match', async () => {
+    let executeCount = 0;
+    const mockRange = { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } };
+    const location = { uri: { fsPath: '/project/foo.ts' }, range: mockRange };
+    const vscode = createMockVSCode({
+      commands: {
+        executeCommand: mock.fn(async (cmd: string) => {
+          if (cmd === 'vscode.executeWorkspaceSymbolProvider') {
+            executeCount++;
+            return [{ name: 'FooBar', kind: SymbolKind.Function, location }];
+          }
+          return undefined;
+        }),
+      },
+      window: {
+        showTextDocument: mock.fn(async () => ({ selection: null, revealRange: () => {} })),
+        showErrorMessage: mock.fn(async () => undefined),
+        showQuickPick: mock.fn(async () => undefined), // User cancels quickpick
+      },
+    });
+    const config = { ...defaultConfig, retryCount: 3 };
+    const { handleUri } = createHandler({ vscode, getConfig: () => config, logger: noopLogger });
+
+    await handleUri(createMockUri('symbol=Foo&cwd=/project'));
+
+    // Should only call LSP once (no retry because fuzzy matches exist)
+    assert.strictEqual(executeCount, 1);
+    // Quickpick should be shown
+    assert.strictEqual((vscode.window.showQuickPick as any).mock.calls.length, 1);
+  });
+
+  it('retries when LSP returns empty results', async () => {
+    let executeCount = 0;
+    const vscode = createMockVSCode({
+      commands: {
+        executeCommand: mock.fn(async (cmd: string) => {
+          if (cmd === 'vscode.executeWorkspaceSymbolProvider') {
+            executeCount++;
+            return []; // Empty results
+          }
+          return undefined;
+        }),
+      },
+    });
+    const config = { ...defaultConfig, retryCount: 3, retryInterval: 0 };
+    const { handleUri } = createHandler({ vscode, getConfig: () => config, logger: noopLogger });
+
+    await handleUri(createMockUri('symbol=Foo&cwd=/project'));
+
+    // Should retry 3 times (retryCount) with 2 query transforms each = 6 calls
+    assert.strictEqual(executeCount, 6);
+  });
 });
