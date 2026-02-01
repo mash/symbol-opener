@@ -13,6 +13,8 @@ export type WorkspaceNotOpenBehavior = 'new-window' | 'current-window' | 'error'
 // 'info': Show only important messages (symbol found/not found, errors)
 export type LogLevel = 'debug' | 'info';
 
+export type Language = 'go' | 'rust' | 'python' | 'ruby' | 'java' | 'typescript';
+
 export interface Logger {
   debug: (message: string) => void;
   info: (message: string) => void;
@@ -23,18 +25,19 @@ export interface Logger {
 // glob: pattern to find source files
 // exclude: pattern to exclude (e.g., vendor directories)
 export interface LangDetector {
+  lang?: string;
   markers: string[];
   glob: string;
   exclude?: string;
 }
 
 export const defaultLangDetectors: LangDetector[] = [
-  { markers: ['tsconfig.json', 'package.json'], glob: '**/*.{ts,js}', exclude: '**/node_modules/**' },
-  { markers: ['go.mod'], glob: '**/*.go', exclude: '**/vendor/**' },
-  { markers: ['Cargo.toml'], glob: '**/*.rs', exclude: '**/target/**' },
-  { markers: ['pyproject.toml', 'requirements.txt', 'setup.py'], glob: '**/*.py', exclude: '**/.venv/**' },
-  { markers: ['Gemfile'], glob: '**/*.rb', exclude: '**/vendor/**' },
-  { markers: ['pom.xml', 'build.gradle', 'build.gradle.kts'], glob: '**/*.java', exclude: '**/target/**' },
+  { lang: 'typescript', markers: ['tsconfig.json', 'package.json'], glob: '**/*.{ts,js}', exclude: '**/node_modules/**' },
+  { lang: 'go', markers: ['go.mod'], glob: '**/*.go', exclude: '**/vendor/**' },
+  { lang: 'rust', markers: ['Cargo.toml'], glob: '**/*.rs', exclude: '**/target/**' },
+  { lang: 'python', markers: ['pyproject.toml', 'requirements.txt', 'setup.py'], glob: '**/*.py', exclude: '**/.venv/**' },
+  { lang: 'ruby', markers: ['Gemfile'], glob: '**/*.rb', exclude: '**/vendor/**' },
+  { lang: 'java', markers: ['pom.xml', 'build.gradle', 'build.gradle.kts'], glob: '**/*.java', exclude: '**/target/**' },
 ];
 
 // Default sort priority: type definitions first, then functions/methods.
@@ -44,6 +47,7 @@ export const defaultSymbolSortPriority: string[] = [
 ];
 
 export interface Config {
+  language?: Language;
   multipleSymbolBehavior: MultipleSymbolBehavior;
   workspaceNotOpenBehavior: WorkspaceNotOpenBehavior;
   retryCount: number;
@@ -56,6 +60,7 @@ export interface Config {
 export function getConfig(): Config {
   const config = vscode.workspace.getConfiguration('symbolOpener');
   return {
+    language: config.get<Language>('language'),
     multipleSymbolBehavior: config.get<MultipleSymbolBehavior>('multipleSymbolBehavior', 'first'),
     workspaceNotOpenBehavior: config.get<WorkspaceNotOpenBehavior>('workspaceNotOpenBehavior', 'new-window'),
     // LSP servers need time to index after workspace opens.

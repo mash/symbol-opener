@@ -59,6 +59,7 @@ function createMockGlobalState() {
 }
 
 const defaultConfig: Config = {
+  language: undefined,
   multipleSymbolBehavior: 'first',
   workspaceNotOpenBehavior: 'new-window',
   retryCount: 1,
@@ -522,6 +523,49 @@ describe('handleUri', () => {
     const calls = (vscode.window.showErrorMessage as any).mock.calls;
     assert.strictEqual(calls.length, 1);
     assert.match(calls[0].arguments[0], /Invalid SymbolKind.*InvalidKind/);
+  });
+
+  it('uses configured language to activate LSP instead of marker detection', async () => {
+    const langDetectors = [
+      { lang: 'go', markers: ['go.mod'], glob: '**/*.go' },
+      { lang: 'typescript', markers: ['tsconfig.json'], glob: '**/*.ts' },
+    ];
+    const goFile = { fsPath: '/project/main.go', path: '/project/main.go' };
+    const location = {
+      uri: { fsPath: '/project/foo.go', path: '/project/foo.go' },
+      range: { start: { line: 10, character: 0 }, end: { line: 10, character: 5 } },
+    };
+
+    let findFilesPatterns: string[] = [];
+    const vscode = createMockVSCode({
+      workspace: {
+        workspaceFolders: [{ uri: { fsPath: '/project' } }],
+        openTextDocument: mock.fn(async (uri: any) => ({ uri })),
+        getConfiguration: () => ({ get: <T>(_k: string, d: T) => d }),
+        findFiles: mock.fn(async (pattern: string) => {
+          findFilesPatterns.push(pattern);
+          if (pattern === '**/*.go') return [goFile];
+          return [];
+        }),
+      },
+      commands: {
+        executeCommand: mock.fn(async (cmd: string) => {
+          if (cmd === 'vscode.executeWorkspaceSymbolProvider') {
+            return [{ name: 'Foo', kind: SymbolKind.Function, location }];
+          }
+          return undefined;
+        }),
+      },
+    });
+
+    const config = { ...defaultConfig, language: 'go' as const, langDetectors };
+    const { handleUri } = createHandler({ vscode, getConfig: () => config, logger: noopLogger });
+
+    await handleUri(createMockUri('symbol=Foo&cwd=/project'));
+
+    // Should use go glob pattern directly without checking markers
+    assert.ok(findFilesPatterns.includes('**/*.go'), 'Should find go files');
+    assert.ok(!findFilesPatterns.includes('go.mod'), 'Should NOT check for go.mod marker');
   });
 });
 

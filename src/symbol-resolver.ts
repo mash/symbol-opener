@@ -229,7 +229,21 @@ export function createSymbolResolver(deps: SymbolResolverDeps) {
     return sorted[0];
   }
 
-  async function activateLsp(langDetectors: LangDetector[]): Promise<void> {
+  async function activateLsp(langDetectors: LangDetector[], language?: string): Promise<void> {
+    // If language is explicitly configured, use that detector directly
+    if (language) {
+      const detector = langDetectors.find(d => d.lang === language);
+      if (detector) {
+        const sourceFiles = await vscode.workspace.findFiles(detector.glob, detector.exclude, 1);
+        if (sourceFiles && sourceFiles.length > 0) {
+          await vscode.workspace.openTextDocument(sourceFiles[0]);
+          logger.debug(`using configured language "${language}", opened ${sourceFiles[0].fsPath} to trigger LSP`);
+        }
+        return;
+      }
+      logger.debug(`configured language "${language}" not found in langDetectors, falling back to detection`);
+    }
+
     for (const { markers, glob, exclude } of langDetectors) {
       for (const marker of markers) {
         const markerFiles = await vscode.workspace.findFiles(marker, undefined, 1);
@@ -248,7 +262,7 @@ export function createSymbolResolver(deps: SymbolResolverDeps) {
 
   async function openSymbol(symbol: string, kind?: string): Promise<void> {
     const config = getConfig();
-    await activateLsp(config.langDetectors);
+    await activateLsp(config.langDetectors, config.language);
 
     logger.info(`resolving symbol: ${symbol}${kind ? `, kind: ${kind}` : ''}`);
     let resolved;

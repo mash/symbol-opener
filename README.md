@@ -38,10 +38,23 @@ open "cursor://mash.symbol-opener?symbol=createHandler&cwd=/Users/mash/src/githu
 | --------------------------------------- | ------------ | ---------------------------------------------------------------------------------------------------------- |
 | `symbolOpener.multipleSymbolBehavior`   | `first`      | `first`: use first match, `quickpick`: show picker                                                         |
 | `symbolOpener.workspaceNotOpenBehavior` | `new-window` | `new-window`: open in new window, `current-window`: replace current, `error`: show error                   |
+| `symbolOpener.language`                 | (unset)      | Override language detection: `go`, `rust`, `python`, `ruby`, `java`, `typescript` |
 | `symbolOpener.retryCount`               | `10`         | LSP retry count (LSP may need time to index)                                                               |
 | `symbolOpener.retryInterval`            | `500`        | Retry interval in ms                                                                                       |
 | `symbolOpener.logLevel`                 | `info`       | `debug`: show all logs, `info`: show only important messages                                               |
 | `symbolOpener.langDetectors`            | (see below)  | Language detectors for LSP activation                                                                      |
+
+### Project-Level Language Override
+
+If automatic language detection picks the wrong language (e.g., in a monorepo with multiple languages), you can explicitly set the language in `.vscode/settings.json`:
+
+```json
+{
+  "symbolOpener.language": "go"
+}
+```
+
+When set, this skips marker-based detection and directly uses the specified language's detector.
 
 ### Language Detectors
 
@@ -50,18 +63,19 @@ LSP servers only start after opening a file of that language. `langDetectors` co
 ```json
 {
   "symbolOpener.langDetectors": [
-    { "markers": ["tsconfig.json", "package.json"], "glob": "**/*.{ts,js}", "exclude": "**/node_modules/**" },
-    { "markers": ["go.mod"], "glob": "**/*.go", "exclude": "**/vendor/**" },
-    { "markers": ["Cargo.toml"], "glob": "**/*.rs", "exclude": "**/target/**" }
+    { "lang": "typescript", "markers": ["tsconfig.json", "package.json"], "glob": "**/*.{ts,js}", "exclude": "**/node_modules/**" },
+    { "lang": "go", "markers": ["go.mod"], "glob": "**/*.go", "exclude": "**/vendor/**" },
+    { "lang": "rust", "markers": ["Cargo.toml"], "glob": "**/*.rs", "exclude": "**/target/**" }
   ]
 }
 ```
 
-| Field     | Description                                      |
-| --------- | ------------------------------------------------ |
-| `markers` | Files indicating this language (e.g., `go.mod`)  |
-| `glob`    | Pattern to find source files to open             |
-| `exclude` | Pattern to exclude (e.g., `**/node_modules/**`)  |
+| Field     | Description                                           |
+| --------- | ----------------------------------------------------- |
+| `lang`    | Language identifier (optional, used with `language`)  |
+| `markers` | Files indicating this language (e.g., `go.mod`)       |
+| `glob`    | Pattern to find source files to open                  |
+| `exclude` | Pattern to exclude (e.g., `**/node_modules/**`)       |
 
 ## Viewing Logs
 

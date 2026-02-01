@@ -36,6 +36,12 @@
           "description": "Behavior when multiple symbols match: first (use first result), quickpick (show picker)",
           "scope": "window"
         },
+        "symbolOpener.language": {
+          "type": "string",
+          "enum": ["go", "rust", "python", "ruby", "java", "typescript"],
+          "markdownDescription": "Override language detection for this workspace. If not set, language is detected automatically using `langDetectors`.",
+          "scope": "resource"
+        },
         "symbolOpener.workspaceNotOpenBehavior": {
           "type": "string",
           "enum": ["new-window", "current-window", "error"],
@@ -58,18 +64,19 @@
         "symbolOpener.langDetectors": {
           "type": "array",
           "default": [
-            { "markers": ["go.mod"], "glob": "**/*.go", "exclude": "**/vendor/**" },
-            { "markers": ["Cargo.toml"], "glob": "**/*.rs", "exclude": "**/target/**" },
-            { "markers": ["pyproject.toml", "requirements.txt", "setup.py"], "glob": "**/*.py", "exclude": "**/.venv/**" },
-            { "markers": ["Gemfile"], "glob": "**/*.rb", "exclude": "**/vendor/**" },
-            { "markers": ["pom.xml", "build.gradle", "build.gradle.kts"], "glob": "**/*.java", "exclude": "**/target/**" },
-            { "markers": ["tsconfig.json", "package.json"], "glob": "**/*.{ts,js}", "exclude": "**/node_modules/**" }
+            { "lang": "go", "markers": ["go.mod"], "glob": "**/*.go", "exclude": "**/vendor/**" },
+            { "lang": "rust", "markers": ["Cargo.toml"], "glob": "**/*.rs", "exclude": "**/target/**" },
+            { "lang": "python", "markers": ["pyproject.toml", "requirements.txt", "setup.py"], "glob": "**/*.py", "exclude": "**/.venv/**" },
+            { "lang": "ruby", "markers": ["Gemfile"], "glob": "**/*.rb", "exclude": "**/vendor/**" },
+            { "lang": "java", "markers": ["pom.xml", "build.gradle", "build.gradle.kts"], "glob": "**/*.java", "exclude": "**/target/**" },
+            { "lang": "typescript", "markers": ["tsconfig.json", "package.json"], "glob": "**/*.{ts,js}", "exclude": "**/node_modules/**" }
           ],
           "description": "Language detectors for LSP activation. Each detector has: markers (files indicating language), glob (source file pattern), exclude (optional exclusion pattern)",
           "scope": "window",
           "items": {
             "type": "object",
             "properties": {
+              "lang": { "type": "string" },
               "markers": { "type": "array", "items": { "type": "string" } },
               "glob": { "type": "string" },
               "exclude": { "type": "string" }
