@@ -7,7 +7,7 @@ VS Code/Cursor extension that opens symbol definitions via URI handler. Designed
 ## URI Format
 
 ```
-cursor://mash.symbol-opener?symbol=createHandler&cwd=/path/to/project&kind=Function
+cursor://maaashjp.symbol-opener?symbol=createHandler&cwd=/path/to/project&kind=Function
 ```
 
 | Parameter | Required | Description                                          |
@@ -19,12 +19,12 @@ cursor://mash.symbol-opener?symbol=createHandler&cwd=/path/to/project&kind=Funct
 ## Usage
 
 ```bash
-open "cursor://mash.symbol-opener?symbol=createHandler&cwd=/Users/mash/src/github.com/mash/symbol-opener"
+open "cursor://maaashjp.symbol-opener?symbol=createHandler&cwd=/Users/mash/src/github.com/mash/symbol-opener"
 ```
 
 ## How This Works
 
-1. **URI Handling** - Receives `cursor://mash.symbol-opener?...` URI. If the target workspace (`cwd`) is not open, opens it in a new window (configurable via `workspaceNotOpenBehavior`) and coordinates between windows using filesystem-based message passing.
+1. **URI Handling** - Receives `cursor://maaashjp.symbol-opener?...` URI. If the target workspace (`cwd`) is not open, opens it in a new window (configurable via `workspaceNotOpenBehavior`) and coordinates between windows using filesystem-based message passing.
 
 2. **LSP Activation** - VS Code's LSP servers only start after opening a file of that language. The extension detects the project language by looking for marker files (`go.mod`, `tsconfig.json`, `Cargo.toml`, etc.), then opens a matching source file in the background to trigger LSP startup.
 
