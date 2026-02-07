@@ -32,12 +32,12 @@ export interface LangDetector {
 }
 
 export const defaultLangDetectors: LangDetector[] = [
-  { lang: 'typescript', markers: ['tsconfig.json', 'package.json'], glob: '**/*.{ts,js}', exclude: '**/node_modules/**' },
   { lang: 'go', markers: ['go.mod'], glob: '**/*.go', exclude: '**/vendor/**' },
   { lang: 'rust', markers: ['Cargo.toml'], glob: '**/*.rs', exclude: '**/target/**' },
   { lang: 'python', markers: ['pyproject.toml', 'requirements.txt', 'setup.py'], glob: '**/*.py', exclude: '**/.venv/**' },
   { lang: 'ruby', markers: ['Gemfile'], glob: '**/*.rb', exclude: '**/vendor/**' },
   { lang: 'java', markers: ['pom.xml', 'build.gradle', 'build.gradle.kts'], glob: '**/*.java', exclude: '**/target/**' },
+  { lang: 'typescript', markers: ['tsconfig.json', 'package.json'], glob: '**/*.{ts,js}', exclude: '**/node_modules/**' },
 ];
 
 // Default sort priority: type definitions first, then functions/methods.
