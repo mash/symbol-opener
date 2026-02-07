@@ -2,7 +2,7 @@
   "name": "symbol-opener",
   "displayName": "Symbol Opener",
   "description": "Opens symbol definitions via URI handler for osc8wrap",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "license": "MIT",
   "files": [
     "out/*.js",
@@ -31,20 +31,34 @@
       "properties": {
         "symbolOpener.multipleSymbolBehavior": {
           "type": "string",
-          "enum": ["first", "quickpick"],
+          "enum": [
+            "first",
+            "quickpick"
+          ],
           "default": "first",
           "description": "Behavior when multiple symbols match: first (use first result), quickpick (show picker)",
           "scope": "window"
         },
         "symbolOpener.language": {
           "type": "string",
-          "enum": ["go", "rust", "python", "ruby", "java", "typescript"],
+          "enum": [
+            "go",
+            "rust",
+            "python",
+            "ruby",
+            "java",
+            "typescript"
+          ],
           "markdownDescription": "Override language detection for this workspace. If not set, language is detected automatically using `langDetectors`.",
           "scope": "resource"
         },
         "symbolOpener.workspaceNotOpenBehavior": {
           "type": "string",
-          "enum": ["new-window", "current-window", "error"],
+          "enum": [
+            "new-window",
+            "current-window",
+            "error"
+          ],
           "default": "new-window",
           "description": "Behavior when the workspace is not open: new-window (open in new window), current-window (open in current window), error (show error)",
           "scope": "window"
@@ -64,37 +78,115 @@
         "symbolOpener.langDetectors": {
           "type": "array",
           "default": [
-            { "lang": "go", "markers": ["go.mod"], "glob": "**/*.go", "exclude": "**/vendor/**" },
-            { "lang": "rust", "markers": ["Cargo.toml"], "glob": "**/*.rs", "exclude": "**/target/**" },
-            { "lang": "python", "markers": ["pyproject.toml", "requirements.txt", "setup.py"], "glob": "**/*.py", "exclude": "**/.venv/**" },
-            { "lang": "ruby", "markers": ["Gemfile"], "glob": "**/*.rb", "exclude": "**/vendor/**" },
-            { "lang": "java", "markers": ["pom.xml", "build.gradle", "build.gradle.kts"], "glob": "**/*.java", "exclude": "**/target/**" },
-            { "lang": "typescript", "markers": ["tsconfig.json", "package.json"], "glob": "**/*.{ts,js}", "exclude": "**/node_modules/**" }
+            {
+              "lang": "go",
+              "markers": [
+                "go.mod"
+              ],
+              "glob": "**/*.go",
+              "exclude": "**/vendor/**"
+            },
+            {
+              "lang": "rust",
+              "markers": [
+                "Cargo.toml"
+              ],
+              "glob": "**/*.rs",
+              "exclude": "**/target/**"
+            },
+            {
+              "lang": "python",
+              "markers": [
+                "pyproject.toml",
+                "requirements.txt",
+                "setup.py"
+              ],
+              "glob": "**/*.py",
+              "exclude": "**/.venv/**"
+            },
+            {
+              "lang": "ruby",
+              "markers": [
+                "Gemfile"
+              ],
+              "glob": "**/*.rb",
+              "exclude": "**/vendor/**"
+            },
+            {
+              "lang": "java",
+              "markers": [
+                "pom.xml",
+                "build.gradle",
+                "build.gradle.kts"
+              ],
+              "glob": "**/*.java",
+              "exclude": "**/target/**"
+            },
+            {
+              "lang": "typescript",
+              "markers": [
+                "tsconfig.json",
+                "package.json"
+              ],
+              "glob": "**/*.{ts,js}",
+              "exclude": "**/node_modules/**"
+            }
           ],
           "description": "Language detectors for LSP activation. Each detector has: markers (files indicating language), glob (source file pattern), exclude (optional exclusion pattern)",
           "scope": "window",
           "items": {
             "type": "object",
             "properties": {
-              "lang": { "type": "string" },
-              "markers": { "type": "array", "items": { "type": "string" } },
-              "glob": { "type": "string" },
-              "exclude": { "type": "string" }
+              "lang": {
+                "type": "string"
+              },
+              "markers": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "glob": {
+                "type": "string"
+              },
+              "exclude": {
+                "type": "string"
+              }
             },
-            "required": ["markers", "glob"]
+            "required": [
+              "markers",
+              "glob"
+            ]
           }
         },
         "symbolOpener.logLevel": {
           "type": "string",
-          "enum": ["debug", "info"],
+          "enum": [
+            "debug",
+            "info"
+          ],
           "default": "info",
           "description": "Log level: debug (show all logs), info (show only important messages)",
           "scope": "window"
         },
         "symbolOpener.symbolSortPriority": {
           "type": "array",
-          "items": { "type": "string" },
-          "default": ["Class", "Interface", "Struct", "Function", "Method", "Constructor", "Constant", "Property", "Field", "Enum", "Variable"],
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "Class",
+            "Interface",
+            "Struct",
+            "Function",
+            "Method",
+            "Constructor",
+            "Constant",
+            "Property",
+            "Field",
+            "Enum",
+            "Variable"
+          ],
           "description": "Priority order for sorting symbol search results by SymbolKind. Symbols with kinds listed earlier appear first.",
           "scope": "window"
         }
