@@ -82,7 +82,7 @@
         },
         "symbolOpener.retryInterval": {
           "type": "number",
-          "default": 1000,
+          "default": 500,
           "description": "Interval between retries in milliseconds",
           "scope": "window"
         },

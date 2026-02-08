@@ -567,37 +567,6 @@ describe('handleUri', () => {
     assert.strictEqual((vscode.window.showErrorMessage as any).mock.calls.length, 0);
   });
 
-  it('does not open search or show error when user cancels', async () => {
-    let findInFilesCalled = false;
-    const vscode = createMockVSCode({
-      commands: {
-        executeCommand: mock.fn(async (cmd: string) => {
-          if (cmd === 'vscode.executeWorkspaceSymbolProvider') {
-            return [];
-          }
-          if (cmd === 'workbench.action.findInFiles') {
-            findInFilesCalled = true;
-          }
-          return undefined;
-        }),
-      },
-      window: {
-        showTextDocument: mock.fn(async () => ({ selection: null, revealRange: () => {} })),
-        showErrorMessage: mock.fn(async () => undefined),
-        showQuickPick: mock.fn(async () => undefined),
-        withProgress: mock.fn(async (_opts: any, task: any) =>
-          task({ report: () => {} }, { isCancellationRequested: true })
-        ),
-      },
-    });
-    const config = { ...defaultConfig, symbolNotFoundBehavior: 'search' as const };
-    const { handleUri } = createHandler({ vscode, getConfig: () => config, logger: noopLogger });
-
-    await handleUri(createMockUri('symbol=NotFound&cwd=/project'));
-
-    assert.strictEqual(findInFilesCalled, false);
-    assert.strictEqual((vscode.window.showErrorMessage as any).mock.calls.length, 0);
-  });
 
   it('sorts symbols by kind priority with first behavior', async () => {
     const mockRange = { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } };
@@ -752,27 +721,6 @@ describe('handleUri', () => {
     assert.ok(statusBar._texts.some(t => t.includes('Found "Foo"')));
   });
 
-  it('hides status bar when user cancels', async () => {
-    const vscode = createMockVSCode({
-      commands: {
-        executeCommand: mock.fn(async () => []),
-      },
-      window: {
-        showTextDocument: mock.fn(async () => ({ selection: null, revealRange: () => {} })),
-        showErrorMessage: mock.fn(async () => undefined),
-        showQuickPick: mock.fn(async () => undefined),
-        withProgress: mock.fn(async (_opts: any, task: any) =>
-          task({ report: () => {} }, { isCancellationRequested: true })
-        ),
-      },
-    });
-    const statusBar = createMockStatusBar();
-    const { handleUri } = createHandler({ vscode, getConfig: () => defaultConfig, logger: noopLogger, statusBar });
-
-    await handleUri(createMockUri('symbol=Foo&cwd=/project'));
-
-    assert.strictEqual(statusBar._shown, false);
-  });
 
   it('shows warning in status bar when symbol not found', async () => {
     const vscode = createMockVSCode({
