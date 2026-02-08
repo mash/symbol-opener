@@ -4,6 +4,11 @@
 
 VS Code/Cursor extension that opens symbol definitions via URI handler. Designed to work with [osc8wrap](https://github.com/mash/osc8wrap) to make terminal output symbols clickable.
 
+## Install
+
+- [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=maaashjp.symbol-opener)
+- [Open VSX Registry](https://open-vsx.org/extension/maaashjp/symbol-opener) (Cursor, Windsurf, VSCodium, etc.)
+
 ## URI Format
 
 ```
