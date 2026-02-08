@@ -207,22 +207,19 @@ export function createSymbolResolver(deps: SymbolResolverDeps) {
       return sorted[0];
     }
 
-    if (config.multipleSymbolBehavior === 'quickpick') {
-      const items = sorted.map(s => ({
-        label: s.name,
-        description: s.containerName,
-        detail: s.location.uri.fsPath,
-        symbol: s,
-      }));
+    // multipleSymbolBehavior: 'quickpick'
+    const items = sorted.map(s => ({
+      label: s.name,
+      description: s.containerName,
+      detail: s.location.uri.fsPath,
+      symbol: s,
+    }));
 
-      const selected = await vscode.window.showQuickPick(items, {
-        placeHolder: 'Select a symbol',
-      });
+    const selected = await vscode.window.showQuickPick(items, {
+      placeHolder: 'Select a symbol',
+    });
 
-      return selected?.symbol;
-    }
-
-    return sorted[0];
+    return selected?.symbol;
   }
 
   async function activateLsp(langDetectors: LangDetector[], language?: string): Promise<void> {

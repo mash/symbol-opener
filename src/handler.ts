@@ -1,6 +1,5 @@
 import type * as vscode from 'vscode';
 import type { GlobalState, PendingUri } from './vscode-api';
-export type { PendingUri };
 import { createSymbolResolver, SymbolResolverDeps } from './symbol-resolver';
 
 export interface HandlerDeps extends SymbolResolverDeps {
