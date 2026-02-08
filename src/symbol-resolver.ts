@@ -1,7 +1,7 @@
 import type * as vscode from 'vscode';
 import type { Config, LangDetector, Logger } from './config';
 import type { StatusBar, VSCodeAPI } from './vscode-api';
-import { parseSymbolKind, buildKindNameToEnum } from './symbol-kind';
+import { expandKind, buildKindNameToEnum } from './symbol-kind';
 
 // Sorts symbols by SymbolKind priority.
 // Priority array index determines sort order: index 0 = highest priority.
@@ -107,9 +107,9 @@ export function createSymbolResolver(deps: SymbolResolverDeps) {
     });
 
     if (kind) {
-      const kindEnum = parseSymbolKind(kind, vscode.SymbolKind);
-      if (kindEnum !== undefined) {
-        exactMatches = exactMatches.filter(s => s.kind === kindEnum);
+      const kindEnums = expandKind(kind, vscode.SymbolKind);
+      if (kindEnums !== undefined) {
+        exactMatches = exactMatches.filter(s => kindEnums.includes(s.kind));
       }
     }
 
@@ -124,9 +124,9 @@ export function createSymbolResolver(deps: SymbolResolverDeps) {
     // No exact match, return symbols as fuzzy matches (filtered by kind if specified)
     let fuzzyMatches = symbols;
     if (kind) {
-      const kindEnum = parseSymbolKind(kind, vscode.SymbolKind);
-      if (kindEnum !== undefined) {
-        fuzzyMatches = fuzzyMatches.filter(s => s.kind === kindEnum);
+      const kindEnums = expandKind(kind, vscode.SymbolKind);
+      if (kindEnums !== undefined) {
+        fuzzyMatches = fuzzyMatches.filter(s => kindEnums.includes(s.kind));
       }
     }
     return { fuzzyMatches };

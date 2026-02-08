@@ -39,3 +39,22 @@ export function parseSymbolKind(
 ): vscode.SymbolKind | undefined {
   return buildKindNameToEnum(SymbolKind)[kind];
 }
+
+export function expandKind(
+  kind: string,
+  SymbolKind: typeof vscode.SymbolKind
+): vscode.SymbolKind[] | undefined {
+  const parsed = parseSymbolKind(kind, SymbolKind);
+  if (parsed === undefined) return undefined;
+
+  const callableKinds: Record<number, number[]> = {
+    [SymbolKind.Function]: [
+      SymbolKind.Function,
+      SymbolKind.Method,
+      SymbolKind.Constructor,
+      SymbolKind.Class,
+    ],
+  };
+
+  return callableKinds[parsed] ?? [parsed];
+}

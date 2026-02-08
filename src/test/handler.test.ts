@@ -190,13 +190,13 @@ describe('handleUri', () => {
   it('filters by kind when provided', async () => {
     const mockRange = { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } };
     const fnLocation = { uri: { fsPath: '/project/fn.ts' }, range: mockRange };
-    const classLocation = { uri: { fsPath: '/project/class.ts' }, range: mockRange };
+    const varLocation = { uri: { fsPath: '/project/var.ts' }, range: mockRange };
     const vscode = createMockVSCode({
       commands: {
         executeCommand: mock.fn(async (cmd: string) => {
           if (cmd === 'vscode.executeWorkspaceSymbolProvider') {
             return [
-              { name: 'Foo', kind: SymbolKind.Class, location: classLocation },
+              { name: 'Foo', kind: SymbolKind.Variable, location: varLocation },
               { name: 'Foo', kind: SymbolKind.Function, location: fnLocation },
             ];
           }
@@ -721,6 +721,80 @@ describe('handleUri', () => {
     assert.ok(statusBar._texts.some(t => t.includes('Found "Foo"')));
   });
 
+
+  it('kind=Function matches Method symbols', async () => {
+    const mockRange = { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } };
+    const methodLocation = { uri: { fsPath: '/project/method.go' }, range: mockRange };
+    const vscode = createMockVSCode({
+      commands: {
+        executeCommand: mock.fn(async (cmd: string) => {
+          if (cmd === 'vscode.executeWorkspaceSymbolProvider') {
+            return [
+              { name: 'Linker.buildSymbolPattern', kind: SymbolKind.Method, location: methodLocation },
+            ];
+          }
+          return undefined;
+        }),
+      },
+    });
+    const { handleUri } = createHandler({ vscode, getConfig: () => defaultConfig, logger: noopLogger });
+
+    await handleUri(createMockUri('symbol=buildSymbolPattern&cwd=/project&kind=Function'));
+
+    const openCalls = (vscode.workspace.openTextDocument as any).mock.calls;
+    assert.strictEqual(openCalls.length, 1);
+    assert.strictEqual(openCalls[0].arguments[0].fsPath, '/project/method.go');
+  });
+
+  it('kind=Function matches Constructor symbols', async () => {
+    const mockRange = { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } };
+    const ctorLocation = { uri: { fsPath: '/project/ctor.ts' }, range: mockRange };
+    const vscode = createMockVSCode({
+      commands: {
+        executeCommand: mock.fn(async (cmd: string) => {
+          if (cmd === 'vscode.executeWorkspaceSymbolProvider') {
+            return [
+              { name: 'Foo', kind: SymbolKind.Constructor, location: ctorLocation },
+            ];
+          }
+          return undefined;
+        }),
+      },
+    });
+    const { handleUri } = createHandler({ vscode, getConfig: () => defaultConfig, logger: noopLogger });
+
+    await handleUri(createMockUri('symbol=Foo&cwd=/project&kind=Function'));
+
+    const openCalls = (vscode.workspace.openTextDocument as any).mock.calls;
+    assert.strictEqual(openCalls.length, 1);
+    assert.strictEqual(openCalls[0].arguments[0].fsPath, '/project/ctor.ts');
+  });
+
+  it('kind=Method does not match Function symbols', async () => {
+    const mockRange = { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } };
+    const fnLocation = { uri: { fsPath: '/project/fn.ts' }, range: mockRange };
+    const vscode = createMockVSCode({
+      commands: {
+        executeCommand: mock.fn(async (cmd: string) => {
+          if (cmd === 'vscode.executeWorkspaceSymbolProvider') {
+            return [
+              { name: 'Foo', kind: SymbolKind.Function, location: fnLocation },
+            ];
+          }
+          return undefined;
+        }),
+      },
+    });
+    const { handleUri } = createHandler({ vscode, getConfig: () => defaultConfig, logger: noopLogger });
+
+    await handleUri(createMockUri('symbol=Foo&cwd=/project&kind=Method'));
+
+    const openCalls = (vscode.workspace.openTextDocument as any).mock.calls;
+    assert.strictEqual(openCalls.length, 0);
+    const errorCalls = (vscode.window.showErrorMessage as any).mock.calls;
+    assert.strictEqual(errorCalls.length, 1);
+    assert.match(errorCalls[0].arguments[0], /not found/);
+  });
 
   it('shows warning in status bar when symbol not found', async () => {
     const vscode = createMockVSCode({
