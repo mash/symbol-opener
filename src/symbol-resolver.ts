@@ -1,6 +1,6 @@
 import type * as vscode from 'vscode';
 import type { Config, LangDetector, Logger } from './config';
-import type { VSCodeAPI } from './vscode-api';
+import type { StatusBar, VSCodeAPI } from './vscode-api';
 import { parseSymbolKind, buildKindNameToEnum } from './symbol-kind';
 
 // Sorts symbols by SymbolKind priority.
@@ -33,6 +33,7 @@ export interface SymbolResolverDeps {
   vscode: VSCodeAPI;
   getConfig: () => Config;
   logger: Logger;
+  statusBar?: StatusBar;
 }
 
 interface ResolveResult {
@@ -42,7 +43,21 @@ interface ResolveResult {
 }
 
 export function createSymbolResolver(deps: SymbolResolverDeps) {
-  const { vscode, getConfig, logger } = deps;
+  const { vscode, getConfig, logger, statusBar } = deps;
+  let hideTimer: ReturnType<typeof setTimeout> | undefined;
+
+  function updateStatusBar(text: string, tooltip?: string) {
+    if (!statusBar) return;
+    statusBar.text = text;
+    statusBar.tooltip = tooltip ?? undefined;
+    statusBar.show();
+  }
+
+  function hideStatusBarAfter(ms: number) {
+    if (!statusBar) return;
+    if (hideTimer) clearTimeout(hideTimer);
+    hideTimer = setTimeout(() => statusBar.hide(), ms);
+  }
 
   // Query transforms to try for workspace symbol search.
   // TypeScript LSP requires # prefix; others work with plain name.
@@ -126,10 +141,9 @@ export function createSymbolResolver(deps: SymbolResolverDeps) {
     return vscode.window.withProgress(
       {
         location: vscode.ProgressLocation.Window,
-        title: `Looking for symbol "${symbolName}"`,
         cancellable: true,
       },
-      async (progress, token) => {
+      async (_progress, token) => {
         // LSP may not be ready immediately after workspace opens. Retry until indexed.
         for (let attempt = 0; attempt < config.retryCount; attempt++) {
           if (token.isCancellationRequested) {
@@ -137,7 +151,10 @@ export function createSymbolResolver(deps: SymbolResolverDeps) {
           }
 
           logger.debug(`attempt ${attempt + 1}/${config.retryCount}`);
-          progress.report({ message: `(${attempt + 1}/${config.retryCount})` });
+          updateStatusBar(
+            `$(search~spin) Searching "${symbolName}" (${attempt + 1}/${config.retryCount})`,
+            `Symbol Opener: Looking for "${symbolName}" - attempt ${attempt + 1} of ${config.retryCount}`
+          );
 
           const result = await tryResolveSymbol(symbolName, kind);
           if (result.cancelled) {
@@ -245,6 +262,7 @@ export function createSymbolResolver(deps: SymbolResolverDeps) {
 
   async function openSymbol(symbol: string, kind?: string): Promise<void> {
     const config = getConfig();
+    updateStatusBar('$(loading~spin) Activating LSP...', 'Symbol Opener: Waiting for language server');
     await activateLsp(config.langDetectors, config.language);
 
     logger.info(`resolving symbol: ${symbol}${kind ? `, kind: ${kind}` : ''}`);
@@ -260,19 +278,26 @@ export function createSymbolResolver(deps: SymbolResolverDeps) {
     if (result.symbol) {
       const { location } = result.symbol;
       logger.info(`found: ${location.uri.fsPath}:${location.range.start.line}`);
+      updateStatusBar(`$(check) Found "${symbol}"`);
+      hideStatusBarAfter(3000);
       const document = await vscode.workspace.openTextDocument(location.uri);
       const editor = await vscode.window.showTextDocument(document);
       editor.selection = new vscode.Selection(location.range.start, location.range.start);
       editor.revealRange(location.range, vscode.TextEditorRevealType.InCenter);
     } else if (result.cancelled) {
       logger.info('cancelled');
+      statusBar?.hide();
     } else if (config.symbolNotFoundBehavior === 'search') {
       logger.info('not found, falling back to workspace search');
+      updateStatusBar(`$(warning) "${symbol}" not found`);
+      hideStatusBarAfter(3000);
       await vscode.commands.executeCommand('workbench.action.findInFiles', {
         query: symbol,
       });
     } else {
       logger.info('not found');
+      updateStatusBar(`$(warning) "${symbol}" not found`);
+      hideStatusBarAfter(3000);
       const kindInfo = kind ? ` (kind: ${kind})` : '';
       await vscode.window.showErrorMessage(
         `Symbol "${symbol}"${kindInfo} not found in workspace`

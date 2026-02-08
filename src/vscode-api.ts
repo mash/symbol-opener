@@ -37,6 +37,13 @@ export interface VSCodeAPI {
   TextEditorRevealType: typeof vscode.TextEditorRevealType;
 }
 
+export interface StatusBar {
+  text: string;
+  tooltip: string | vscode.MarkdownString | undefined;
+  show(): void;
+  hide(): void;
+}
+
 export interface GlobalState {
   get<T>(key: string): T | undefined;
   update(key: string, value: unknown): Thenable<void>;

@@ -11,8 +11,11 @@ export function activate(context: vscode.ExtensionContext): void {
   const logger = createLogger(config.logLevel, msg => outputChannel.appendLine(msg));
   logger.info('Extension activated');
 
+  const statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left);
+  context.subscriptions.push(statusBar);
+
   const globalState = context.globalState;
-  const { handleUri, processPendingUri } = createHandler({ vscode, getConfig, logger, globalState });
+  const { handleUri, processPendingUri } = createHandler({ vscode, getConfig, logger, globalState, statusBar });
 
   processPendingUri();
 

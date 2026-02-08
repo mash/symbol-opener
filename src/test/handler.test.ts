@@ -3,7 +3,7 @@ import assert from 'node:assert';
 import { createHandler } from '../handler';
 import { sortByKindPriority } from '../symbol-resolver';
 import type { Config, Logger } from '../config';
-import type { VSCodeAPI } from '../vscode-api';
+import type { StatusBar, VSCodeAPI } from '../vscode-api';
 
 const SymbolKind = {
   File: 0, Module: 1, Namespace: 2, Package: 3, Class: 4, Method: 5,
@@ -69,6 +69,17 @@ const defaultConfig: Config = {
   logLevel: 'info',
   symbolSortPriority: ['Class', 'Interface', 'Struct', 'Function', 'Method', 'Constructor', 'Constant', 'Property', 'Field', 'Enum', 'Variable'],
 };
+
+function createMockStatusBar(): StatusBar & { _shown: boolean; _texts: string[] } {
+  return {
+    text: '',
+    tooltip: undefined,
+    _shown: false,
+    _texts: [],
+    show() { this._shown = true; this._texts.push(this.text); },
+    hide() { this._shown = false; },
+  };
+}
 
 const noop = () => {};
 const noopLogger: Logger = { debug: noop, info: noop };
@@ -714,6 +725,67 @@ describe('handleUri', () => {
     // Should use go glob pattern directly without checking markers
     assert.ok(findFilesPatterns.includes('**/*.go'), 'Should find go files');
     assert.ok(!findFilesPatterns.includes('go.mod'), 'Should NOT check for go.mod marker');
+  });
+
+  it('updates status bar during symbol resolution', async () => {
+    const location = {
+      uri: { fsPath: '/project/foo.ts', path: '/project/foo.ts' },
+      range: { start: { line: 10, character: 0 }, end: { line: 10, character: 5 } },
+    };
+    const vscode = createMockVSCode({
+      commands: {
+        executeCommand: mock.fn(async (cmd: string) => {
+          if (cmd === 'vscode.executeWorkspaceSymbolProvider') {
+            return [{ name: 'Foo', kind: SymbolKind.Function, location }];
+          }
+          return undefined;
+        }),
+      },
+    });
+    const statusBar = createMockStatusBar();
+    const { handleUri } = createHandler({ vscode, getConfig: () => defaultConfig, logger: noopLogger, statusBar });
+
+    await handleUri(createMockUri('symbol=Foo&cwd=/project'));
+
+    assert.ok(statusBar._texts.some(t => t.includes('Activating LSP')));
+    assert.ok(statusBar._texts.some(t => t.includes('Searching "Foo"')));
+    assert.ok(statusBar._texts.some(t => t.includes('Found "Foo"')));
+  });
+
+  it('hides status bar when user cancels', async () => {
+    const vscode = createMockVSCode({
+      commands: {
+        executeCommand: mock.fn(async () => []),
+      },
+      window: {
+        showTextDocument: mock.fn(async () => ({ selection: null, revealRange: () => {} })),
+        showErrorMessage: mock.fn(async () => undefined),
+        showQuickPick: mock.fn(async () => undefined),
+        withProgress: mock.fn(async (_opts: any, task: any) =>
+          task({ report: () => {} }, { isCancellationRequested: true })
+        ),
+      },
+    });
+    const statusBar = createMockStatusBar();
+    const { handleUri } = createHandler({ vscode, getConfig: () => defaultConfig, logger: noopLogger, statusBar });
+
+    await handleUri(createMockUri('symbol=Foo&cwd=/project'));
+
+    assert.strictEqual(statusBar._shown, false);
+  });
+
+  it('shows warning in status bar when symbol not found', async () => {
+    const vscode = createMockVSCode({
+      commands: {
+        executeCommand: mock.fn(async () => []),
+      },
+    });
+    const statusBar = createMockStatusBar();
+    const { handleUri } = createHandler({ vscode, getConfig: () => defaultConfig, logger: noopLogger, statusBar });
+
+    await handleUri(createMockUri('symbol=Missing&cwd=/project'));
+
+    assert.ok(statusBar._texts.some(t => t.includes('$(warning)') && t.includes('Missing')));
   });
 });
 
