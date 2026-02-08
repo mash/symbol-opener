@@ -418,6 +418,97 @@ describe('handleUri', () => {
     assert.strictEqual((vscode.window.showQuickPick as any).mock.calls.length, 1);
   });
 
+  it('does not show error when quickpick is cancelled on exact match', async () => {
+    const mockRange = { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } };
+    const location1 = { uri: { fsPath: '/project/a.ts' }, range: mockRange };
+    const location2 = { uri: { fsPath: '/project/b.ts' }, range: mockRange };
+    const vscode = createMockVSCode({
+      commands: {
+        executeCommand: mock.fn(async (cmd: string) => {
+          if (cmd === 'vscode.executeWorkspaceSymbolProvider') {
+            return [
+              { name: 'Foo', kind: SymbolKind.Function, location: location1 },
+              { name: 'Foo', kind: SymbolKind.Function, location: location2 },
+            ];
+          }
+          return undefined;
+        }),
+      },
+      window: {
+        showTextDocument: mock.fn(async () => ({ selection: null, revealRange: () => {} })),
+        showErrorMessage: mock.fn(async () => undefined),
+        showQuickPick: mock.fn(async () => undefined),
+        withProgress: mock.fn(async (_opts: any, task: any) => task({ report: () => {} }, { isCancellationRequested: false })),
+      },
+    });
+    const config = { ...defaultConfig, multipleSymbolBehavior: 'quickpick' as const };
+    const { handleUri } = createHandler({ vscode, getConfig: () => config, logger: noopLogger });
+
+    await handleUri(createMockUri('symbol=Foo&cwd=/project'));
+
+    assert.strictEqual((vscode.window.showErrorMessage as any).mock.calls.length, 0);
+  });
+
+  it('does not retry when exact match quickpick is cancelled', async () => {
+    let executeCount = 0;
+    const mockRange = { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } };
+    const location1 = { uri: { fsPath: '/project/a.ts' }, range: mockRange };
+    const location2 = { uri: { fsPath: '/project/b.ts' }, range: mockRange };
+    const vscode = createMockVSCode({
+      commands: {
+        executeCommand: mock.fn(async (cmd: string) => {
+          if (cmd === 'vscode.executeWorkspaceSymbolProvider') {
+            executeCount++;
+            return [
+              { name: 'Foo', kind: SymbolKind.Function, location: location1 },
+              { name: 'Foo', kind: SymbolKind.Function, location: location2 },
+            ];
+          }
+          return undefined;
+        }),
+      },
+      window: {
+        showTextDocument: mock.fn(async () => ({ selection: null, revealRange: () => {} })),
+        showErrorMessage: mock.fn(async () => undefined),
+        showQuickPick: mock.fn(async () => undefined),
+        withProgress: mock.fn(async (_opts: any, task: any) => task({ report: () => {} }, { isCancellationRequested: false })),
+      },
+    });
+    const config = { ...defaultConfig, multipleSymbolBehavior: 'quickpick' as const, retryCount: 3 };
+    const { handleUri } = createHandler({ vscode, getConfig: () => config, logger: noopLogger });
+
+    await handleUri(createMockUri('symbol=Foo&cwd=/project'));
+
+    assert.strictEqual(executeCount, 1);
+    assert.strictEqual((vscode.window.showErrorMessage as any).mock.calls.length, 0);
+  });
+
+  it('does not show error when fuzzy match quickpick is cancelled', async () => {
+    const mockRange = { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } };
+    const location = { uri: { fsPath: '/project/foo.ts' }, range: mockRange };
+    const vscode = createMockVSCode({
+      commands: {
+        executeCommand: mock.fn(async (cmd: string) => {
+          if (cmd === 'vscode.executeWorkspaceSymbolProvider') {
+            return [{ name: 'FooBar', kind: SymbolKind.Function, location }];
+          }
+          return undefined;
+        }),
+      },
+      window: {
+        showTextDocument: mock.fn(async () => ({ selection: null, revealRange: () => {} })),
+        showErrorMessage: mock.fn(async () => undefined),
+        showQuickPick: mock.fn(async () => undefined),
+        withProgress: mock.fn(async (_opts: any, task: any) => task({ report: () => {} }, { isCancellationRequested: false })),
+      },
+    });
+    const { handleUri } = createHandler({ vscode, getConfig: () => defaultConfig, logger: noopLogger });
+
+    await handleUri(createMockUri('symbol=Foo&cwd=/project'));
+
+    assert.strictEqual((vscode.window.showErrorMessage as any).mock.calls.length, 0);
+  });
+
   it('retries when LSP returns empty results', async () => {
     let executeCount = 0;
     const vscode = createMockVSCode({
