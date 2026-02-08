@@ -9,6 +9,10 @@ export type MultipleSymbolBehavior = 'first' | 'quickpick';
 // 'error': Show error, require user to open workspace manually first.
 export type WorkspaceNotOpenBehavior = 'new-window' | 'current-window' | 'error';
 
+// 'error': Show error message when symbol is not found after retries.
+// 'search': Open workspace search with symbol name pre-filled.
+export type SymbolNotFoundBehavior = 'error' | 'search';
+
 // 'debug': Show all logs including internal details (queries, retries, etc.)
 // 'info': Show only important messages (symbol found/not found, errors)
 export type LogLevel = 'debug' | 'info';
@@ -50,6 +54,7 @@ export interface Config {
   language?: Language;
   multipleSymbolBehavior: MultipleSymbolBehavior;
   workspaceNotOpenBehavior: WorkspaceNotOpenBehavior;
+  symbolNotFoundBehavior: SymbolNotFoundBehavior;
   retryCount: number;
   retryInterval: number;
   langDetectors: LangDetector[];
@@ -63,6 +68,7 @@ export function getConfig(): Config {
     language: config.get<Language>('language'),
     multipleSymbolBehavior: config.get<MultipleSymbolBehavior>('multipleSymbolBehavior', 'first'),
     workspaceNotOpenBehavior: config.get<WorkspaceNotOpenBehavior>('workspaceNotOpenBehavior', 'new-window'),
+    symbolNotFoundBehavior: config.get<SymbolNotFoundBehavior>('symbolNotFoundBehavior', 'search'),
     // LSP servers need time to index after workspace opens.
     retryCount: config.get<number>('retryCount', 10),
     retryInterval: config.get<number>('retryInterval', 500),

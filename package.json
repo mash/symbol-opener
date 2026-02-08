@@ -63,6 +63,16 @@
           "description": "Behavior when the workspace is not open: new-window (open in new window), current-window (open in current window), error (show error)",
           "scope": "window"
         },
+        "symbolOpener.symbolNotFoundBehavior": {
+          "type": "string",
+          "enum": [
+            "error",
+            "search"
+          ],
+          "default": "search",
+          "description": "Behavior when symbol is not found after retries: error (show error message), search (open workspace search with symbol name)",
+          "scope": "window"
+        },
         "symbolOpener.retryCount": {
           "type": "number",
           "default": 10,

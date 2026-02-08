@@ -293,6 +293,11 @@ export function createSymbolResolver(deps: SymbolResolverDeps) {
       editor.revealRange(location.range, vscode.TextEditorRevealType.InCenter);
     } else if (result.cancelled) {
       logger.info('cancelled');
+    } else if (config.symbolNotFoundBehavior === 'search') {
+      logger.info('not found, falling back to workspace search');
+      await vscode.commands.executeCommand('workbench.action.findInFiles', {
+        query: symbol,
+      });
     } else {
       logger.info('not found');
       const kindInfo = kind ? ` (kind: ${kind})` : '';

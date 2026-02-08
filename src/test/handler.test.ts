@@ -62,6 +62,7 @@ const defaultConfig: Config = {
   language: undefined,
   multipleSymbolBehavior: 'first',
   workspaceNotOpenBehavior: 'new-window',
+  symbolNotFoundBehavior: 'error',
   retryCount: 1,
   retryInterval: 0,
   langDetectors: [],
@@ -529,6 +530,62 @@ describe('handleUri', () => {
 
     // Should retry 3 times (retryCount) with 2 query transforms each = 6 calls
     assert.strictEqual(executeCount, 6);
+  });
+
+  it('opens workspace search when symbol not found and behavior is search', async () => {
+    let findInFilesArgs: any;
+    const vscode = createMockVSCode({
+      commands: {
+        executeCommand: mock.fn(async (cmd: string, ...args: any[]) => {
+          if (cmd === 'vscode.executeWorkspaceSymbolProvider') {
+            return [];
+          }
+          if (cmd === 'workbench.action.findInFiles') {
+            findInFilesArgs = args[0];
+          }
+          return undefined;
+        }),
+      },
+    });
+    const config = { ...defaultConfig, symbolNotFoundBehavior: 'search' as const };
+    const { handleUri } = createHandler({ vscode, getConfig: () => config, logger: noopLogger });
+
+    await handleUri(createMockUri('symbol=NotFound&cwd=/project'));
+
+    assert.deepStrictEqual(findInFilesArgs, { query: 'NotFound' });
+    assert.strictEqual((vscode.window.showErrorMessage as any).mock.calls.length, 0);
+  });
+
+  it('does not open search or show error when user cancels', async () => {
+    let findInFilesCalled = false;
+    const vscode = createMockVSCode({
+      commands: {
+        executeCommand: mock.fn(async (cmd: string) => {
+          if (cmd === 'vscode.executeWorkspaceSymbolProvider') {
+            return [];
+          }
+          if (cmd === 'workbench.action.findInFiles') {
+            findInFilesCalled = true;
+          }
+          return undefined;
+        }),
+      },
+      window: {
+        showTextDocument: mock.fn(async () => ({ selection: null, revealRange: () => {} })),
+        showErrorMessage: mock.fn(async () => undefined),
+        showQuickPick: mock.fn(async () => undefined),
+        withProgress: mock.fn(async (_opts: any, task: any) =>
+          task({ report: () => {} }, { isCancellationRequested: true })
+        ),
+      },
+    });
+    const config = { ...defaultConfig, symbolNotFoundBehavior: 'search' as const };
+    const { handleUri } = createHandler({ vscode, getConfig: () => config, logger: noopLogger });
+
+    await handleUri(createMockUri('symbol=NotFound&cwd=/project'));
+
+    assert.strictEqual(findInFilesCalled, false);
+    assert.strictEqual((vscode.window.showErrorMessage as any).mock.calls.length, 0);
   });
 
   it('sorts symbols by kind priority with first behavior', async () => {
