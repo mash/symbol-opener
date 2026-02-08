@@ -1,7 +1,7 @@
 import type * as vscode from 'vscode';
 import type { Config, LangDetector, Logger } from './config';
 import type { VSCodeAPI } from './vscode-api';
-import { parseSymbolKind } from './symbol-kind';
+import { parseSymbolKind, buildKindNameToEnum } from './symbol-kind';
 
 // Sorts symbols by SymbolKind priority.
 // Priority array index determines sort order: index 0 = highest priority.
@@ -11,34 +11,7 @@ export function sortByKindPriority(
   priority: string[],
   SymbolKind: typeof vscode.SymbolKind
 ): vscode.SymbolInformation[] {
-  const kindNameToEnum: Record<string, number> = {
-    File: SymbolKind.File,
-    Module: SymbolKind.Module,
-    Namespace: SymbolKind.Namespace,
-    Package: SymbolKind.Package,
-    Class: SymbolKind.Class,
-    Method: SymbolKind.Method,
-    Property: SymbolKind.Property,
-    Field: SymbolKind.Field,
-    Constructor: SymbolKind.Constructor,
-    Enum: SymbolKind.Enum,
-    Interface: SymbolKind.Interface,
-    Function: SymbolKind.Function,
-    Variable: SymbolKind.Variable,
-    Constant: SymbolKind.Constant,
-    String: SymbolKind.String,
-    Number: SymbolKind.Number,
-    Boolean: SymbolKind.Boolean,
-    Array: SymbolKind.Array,
-    Object: SymbolKind.Object,
-    Key: SymbolKind.Key,
-    Null: SymbolKind.Null,
-    EnumMember: SymbolKind.EnumMember,
-    Struct: SymbolKind.Struct,
-    Event: SymbolKind.Event,
-    Operator: SymbolKind.Operator,
-    TypeParameter: SymbolKind.TypeParameter,
-  };
+  const kindNameToEnum = buildKindNameToEnum(SymbolKind);
 
   const priorityMap = new Map<number, number>();
   for (const name of priority) {

@@ -1,10 +1,9 @@
 import type * as vscode from 'vscode';
 
-export function parseSymbolKind(
-  kind: string,
+export function buildKindNameToEnum(
   SymbolKind: typeof vscode.SymbolKind
-): vscode.SymbolKind | undefined {
-  const kindMap: Record<string, vscode.SymbolKind> = {
+): Record<string, number> {
+  return {
     File: SymbolKind.File,
     Module: SymbolKind.Module,
     Namespace: SymbolKind.Namespace,
@@ -32,5 +31,11 @@ export function parseSymbolKind(
     Operator: SymbolKind.Operator,
     TypeParameter: SymbolKind.TypeParameter,
   };
-  return kindMap[kind];
+}
+
+export function parseSymbolKind(
+  kind: string,
+  SymbolKind: typeof vscode.SymbolKind
+): vscode.SymbolKind | undefined {
+  return buildKindNameToEnum(SymbolKind)[kind];
 }
