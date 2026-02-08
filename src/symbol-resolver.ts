@@ -65,6 +65,7 @@ export interface SymbolResolverDeps {
 interface ResolveResult {
   symbol?: vscode.SymbolInformation;
   fuzzyMatches: vscode.SymbolInformation[];
+  cancelled?: boolean;
 }
 
 export function createSymbolResolver(deps: SymbolResolverDeps) {
@@ -126,6 +127,9 @@ export function createSymbolResolver(deps: SymbolResolverDeps) {
 
     if (exactMatches.length > 0) {
       const symbol = await selectSymbol(exactMatches, getConfig());
+      if (!symbol) {
+        return { cancelled: true, fuzzyMatches: [] };
+      }
       return { symbol, fuzzyMatches: [] };
     }
 
@@ -143,7 +147,7 @@ export function createSymbolResolver(deps: SymbolResolverDeps) {
   async function resolveSymbol(
     symbolName: string,
     kind?: string
-  ): Promise<vscode.SymbolInformation | undefined> {
+  ): Promise<{ symbol?: vscode.SymbolInformation; cancelled?: boolean }> {
     const config = getConfig();
 
     return vscode.window.withProgress(
@@ -156,26 +160,32 @@ export function createSymbolResolver(deps: SymbolResolverDeps) {
         // LSP may not be ready immediately after workspace opens. Retry until indexed.
         for (let attempt = 0; attempt < config.retryCount; attempt++) {
           if (token.isCancellationRequested) {
-            return undefined;
+            return { cancelled: true };
           }
 
           logger.debug(`attempt ${attempt + 1}/${config.retryCount}`);
           progress.report({ message: `(${attempt + 1}/${config.retryCount})` });
 
           const result = await tryResolveSymbol(symbolName, kind);
+          if (result.cancelled) {
+            return { cancelled: true };
+          }
           if (result.symbol) {
-            return result.symbol;
+            return { symbol: result.symbol };
           }
 
           if (result.fuzzyMatches.length > 0) {
-            // LSP is working but no exact match - show fuzzy matches in quickpick
-            return selectFuzzyMatch(result.fuzzyMatches);
+            const selected = await selectFuzzyMatch(result.fuzzyMatches);
+            if (!selected) {
+              return { cancelled: true };
+            }
+            return { symbol: selected };
           }
 
           await new Promise(resolve => setTimeout(resolve, config.retryInterval));
         }
 
-        return undefined;
+        return {};
       }
     );
   }
@@ -265,22 +275,24 @@ export function createSymbolResolver(deps: SymbolResolverDeps) {
     await activateLsp(config.langDetectors, config.language);
 
     logger.info(`resolving symbol: ${symbol}${kind ? `, kind: ${kind}` : ''}`);
-    let resolved;
+    let result;
     try {
-      resolved = await resolveSymbol(symbol, kind);
+      result = await resolveSymbol(symbol, kind);
     } catch (e) {
       if (e instanceof Error) {
         await vscode.window.showErrorMessage(e.message);
       }
       return;
     }
-    if (resolved) {
-      const { location } = resolved;
+    if (result.symbol) {
+      const { location } = result.symbol;
       logger.info(`found: ${location.uri.fsPath}:${location.range.start.line}`);
       const document = await vscode.workspace.openTextDocument(location.uri);
       const editor = await vscode.window.showTextDocument(document);
       editor.selection = new vscode.Selection(location.range.start, location.range.start);
       editor.revealRange(location.range, vscode.TextEditorRevealType.InCenter);
+    } else if (result.cancelled) {
+      logger.info('cancelled');
     } else {
       logger.info('not found');
       const kindInfo = kind ? ` (kind: ${kind})` : '';
