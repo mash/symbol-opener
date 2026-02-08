@@ -209,7 +209,7 @@
     "watch": "tsc -watch -p ./",
     "package": "vsce package",
     "test": "node --import tsx --test src/test/*.test.ts",
-    "install:cursor": "npm run package && cursor --install-extension symbol-opener-0.0.1.vsix"
+    "install:cursor": "npm run package && cursor --install-extension symbol-opener-$(node -p \"require('./package.json').version\").vsix"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
