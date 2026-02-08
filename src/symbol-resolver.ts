@@ -138,18 +138,14 @@ export function createSymbolResolver(deps: SymbolResolverDeps) {
   ): Promise<{ symbol?: vscode.SymbolInformation; cancelled?: boolean }> {
     const config = getConfig();
 
+    // ProgressLocation.Window does not support cancellation (no cancel UI).
     return vscode.window.withProgress(
       {
         location: vscode.ProgressLocation.Window,
-        cancellable: true,
       },
-      async (_progress, token) => {
+      async () => {
         // LSP may not be ready immediately after workspace opens. Retry until indexed.
         for (let attempt = 0; attempt < config.retryCount; attempt++) {
-          if (token.isCancellationRequested) {
-            return { cancelled: true };
-          }
-
           logger.debug(`attempt ${attempt + 1}/${config.retryCount}`);
           updateStatusBar(
             `$(search~spin) Searching "${symbolName}" (${attempt + 1}/${config.retryCount})`,
