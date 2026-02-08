@@ -35,16 +35,6 @@ export interface LangDetector {
   exclude?: string;
 }
 
-export const defaultLangDetectors: LangDetector[] = [
-  { lang: 'go', markers: ['go.mod'], glob: '**/*.go', exclude: '**/vendor/**' },
-  { lang: 'rust', markers: ['Cargo.toml'], glob: '**/*.rs', exclude: '**/target/**' },
-  { lang: 'python', markers: ['pyproject.toml', 'requirements.txt', 'setup.py'], glob: '**/*.py', exclude: '**/.venv/**' },
-  { lang: 'ruby', markers: ['Gemfile'], glob: '**/*.rb', exclude: '**/vendor/**' },
-  { lang: 'java', markers: ['pom.xml', 'build.gradle', 'build.gradle.kts'], glob: '**/*.java', exclude: '**/target/**' },
-  { lang: 'cpp', markers: ['CMakeLists.txt'], glob: '**/*.{c,cpp,cc,cxx,h,hpp,hxx}', exclude: '**/build/**' },
-  { lang: 'typescript', markers: ['tsconfig.json', 'package.json'], glob: '**/*.{ts,js}', exclude: '**/node_modules/**' },
-];
-
 // Default sort priority: type definitions first, then functions/methods.
 export const defaultSymbolSortPriority: string[] = [
   'Class', 'Interface', 'Struct', 'Function', 'Method', 'Constructor',
@@ -73,7 +63,7 @@ export function getConfig(): Config {
     // LSP servers need time to index after workspace opens.
     retryCount: config.get<number>('retryCount', 10),
     retryInterval: config.get<number>('retryInterval', 500),
-    langDetectors: config.get<LangDetector[]>('langDetectors', defaultLangDetectors),
+    langDetectors: config.get<LangDetector[]>('langDetectors', []),
     logLevel: config.get<LogLevel>('logLevel', 'info'),
     symbolSortPriority: config.get<string[]>('symbolSortPriority', defaultSymbolSortPriority),
   };
