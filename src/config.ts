@@ -17,7 +17,7 @@ export type SymbolNotFoundBehavior = 'error' | 'search';
 // 'info': Show only important messages (symbol found/not found, errors)
 export type LogLevel = 'debug' | 'info';
 
-export type Language = 'go' | 'rust' | 'python' | 'ruby' | 'java' | 'typescript';
+export type Language = 'go' | 'rust' | 'python' | 'ruby' | 'java' | 'typescript' | 'cpp';
 
 export interface Logger {
   debug: (message: string) => void;
@@ -41,6 +41,7 @@ export const defaultLangDetectors: LangDetector[] = [
   { lang: 'python', markers: ['pyproject.toml', 'requirements.txt', 'setup.py'], glob: '**/*.py', exclude: '**/.venv/**' },
   { lang: 'ruby', markers: ['Gemfile'], glob: '**/*.rb', exclude: '**/vendor/**' },
   { lang: 'java', markers: ['pom.xml', 'build.gradle', 'build.gradle.kts'], glob: '**/*.java', exclude: '**/target/**' },
+  { lang: 'cpp', markers: ['CMakeLists.txt'], glob: '**/*.{c,cpp,cc,cxx,h,hpp,hxx}', exclude: '**/build/**' },
   { lang: 'typescript', markers: ['tsconfig.json', 'package.json'], glob: '**/*.{ts,js}', exclude: '**/node_modules/**' },
 ];
 

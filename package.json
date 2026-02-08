@@ -47,7 +47,8 @@
             "python",
             "ruby",
             "java",
-            "typescript"
+            "typescript",
+            "cpp"
           ],
           "markdownDescription": "Override language detection for this workspace. If not set, language is detected automatically using `langDetectors`.",
           "scope": "resource"
@@ -131,6 +132,14 @@
               ],
               "glob": "**/*.java",
               "exclude": "**/target/**"
+            },
+            {
+              "lang": "cpp",
+              "markers": [
+                "CMakeLists.txt"
+              ],
+              "glob": "**/*.{c,cpp,cc,cxx,h,hpp,hxx}",
+              "exclude": "**/build/**"
             },
             {
               "lang": "typescript",

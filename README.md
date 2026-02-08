@@ -38,7 +38,7 @@ open "cursor://maaashjp.symbol-opener?symbol=createHandler&cwd=/Users/mash/src/g
 | --------------------------------------- | ------------ | ---------------------------------------------------------------------------------------------------------- |
 | `symbolOpener.multipleSymbolBehavior`   | `first`      | `first`: use first match, `quickpick`: show picker                                                         |
 | `symbolOpener.workspaceNotOpenBehavior` | `new-window` | `new-window`: open in new window, `current-window`: replace current, `error`: show error                   |
-| `symbolOpener.language`                 | (unset)      | Override language detection: `go`, `rust`, `python`, `ruby`, `java`, `typescript` |
+| `symbolOpener.language`                 | (unset)      | Override language detection: `go`, `rust`, `python`, `ruby`, `java`, `typescript`, `cpp` |
 | `symbolOpener.retryCount`               | `10`         | LSP retry count (LSP may need time to index)                                                               |
 | `symbolOpener.retryInterval`            | `500`        | Retry interval in ms                                                                                       |
 | `symbolOpener.logLevel`                 | `info`       | `debug`: show all logs, `info`: show only important messages                                               |
@@ -68,6 +68,7 @@ LSP servers only start after opening a file of that language. `langDetectors` co
     { "lang": "python", "markers": ["pyproject.toml", "requirements.txt", "setup.py"], "glob": "**/*.py", "exclude": "**/.venv/**" },
     { "lang": "ruby", "markers": ["Gemfile"], "glob": "**/*.rb", "exclude": "**/vendor/**" },
     { "lang": "java", "markers": ["pom.xml", "build.gradle", "build.gradle.kts"], "glob": "**/*.java", "exclude": "**/target/**" },
+    { "lang": "cpp", "markers": ["CMakeLists.txt"], "glob": "**/*.{c,cpp,cc,cxx,h,hpp,hxx}", "exclude": "**/build/**" },
     { "lang": "typescript", "markers": ["tsconfig.json", "package.json"], "glob": "**/*.{ts,js}", "exclude": "**/node_modules/**" }
   ]
 }
