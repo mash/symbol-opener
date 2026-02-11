@@ -45,10 +45,12 @@ open "cursor://maaashjp.symbol-opener?symbol=createHandler&cwd=/Users/mash/src/g
 | --------------------------------------- | ------------ | ---------------------------------------------------------------------------------------------------------- |
 | `symbolOpener.multipleSymbolBehavior`   | `first`      | `first`: use first match, `quickpick`: show picker                                                         |
 | `symbolOpener.workspaceNotOpenBehavior` | `new-window` | `new-window`: open in new window, `current-window`: replace current, `error`: show error                   |
-| `symbolOpener.language`                 | (unset)      | Override language detection: `go`, `rust`, `python`, `ruby`, `java`, `typescript`, `cpp` |
+| `symbolOpener.symbolNotFoundBehavior`   | `search`     | `error`: show error message, `search`: open workspace search with symbol name                              |
+| `symbolOpener.language`                 | (unset)      | Override language detection: `go`, `rust`, `python`, `ruby`, `java`, `typescript`, `cpp`                   |
 | `symbolOpener.retryCount`               | `10`         | LSP retry count (LSP may need time to index)                                                               |
 | `symbolOpener.retryInterval`            | `500`        | Retry interval in ms                                                                                       |
 | `symbolOpener.logLevel`                 | `info`       | `debug`: show all logs, `info`: show only important messages                                               |
+| `symbolOpener.symbolSortPriority`       | (see below)  | Priority order for sorting symbol results by SymbolKind                                                    |
 | `symbolOpener.langDetectors`            | (see below)  | Language detectors for LSP activation                                                                      |
 
 ### Project-Level Language Override
@@ -62,6 +64,16 @@ If automatic language detection picks the wrong language (e.g., in a monorepo wi
 ```
 
 When set, this skips marker-based detection and directly uses the specified language's detector.
+
+### Symbol Sort Priority
+
+When multiple symbols match, results are sorted by `SymbolKind` using this priority list. Kinds listed earlier appear first. Kinds not in the list are sorted to the end.
+
+Default:
+
+```json
+["Class", "Interface", "Struct", "Function", "Method", "Constructor", "Constant", "Property", "Field", "Enum", "Variable"]
+```
 
 ### Language Detectors
 
