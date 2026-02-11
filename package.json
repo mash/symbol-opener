@@ -214,8 +214,8 @@
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./",
+    "compile": "node esbuild.mjs",
+    "watch": "node esbuild.mjs --watch",
     "package": "vsce package",
     "test": "node --import tsx --test src/test/*.test.ts",
     "install:cursor": "npm run package && cursor --install-extension symbol-opener-$(node -p \"require('./package.json').version\").vsix"
@@ -225,10 +225,9 @@
     "@types/node": "^20.0.0",
     "@types/vscode": "^1.80.0",
     "@vscode/vsce": "^3.0.0",
+    "esbuild": "^0.27.3",
+    "minimatch": "^10.1.2",
     "tsx": "^4.0.0",
     "typescript": "^5.0.0"
-  },
-  "dependencies": {
-    "minimatch": "^10.1.2"
   }
 }
