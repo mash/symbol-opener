@@ -25,6 +25,7 @@ function createMockVSCode(overrides: Partial<any> = {}): VSCodeAPI {
       findFiles: mock.fn(async () => []),
     },
     window: {
+      visibleTextEditors: [],
       showTextDocument: mock.fn(async () => ({ selection: null, revealRange: () => {} })),
       showErrorMessage: mock.fn(async () => undefined),
       showQuickPick: mock.fn(async () => undefined),
@@ -245,6 +246,7 @@ describe('handleUri', () => {
         }),
       },
       window: {
+        visibleTextEditors: [],
         showTextDocument: mock.fn(async () => ({ selection: null, revealRange: () => {} })),
         showErrorMessage: mock.fn(async () => undefined),
         showQuickPick: mock.fn(async (items: any[]) => items[1]),
@@ -377,6 +379,7 @@ describe('handleUri', () => {
         }),
       },
       window: {
+        visibleTextEditors: [],
         showTextDocument: mock.fn(async () => ({ selection: null, revealRange: () => {} })),
         showErrorMessage: mock.fn(async () => undefined),
         showQuickPick: mock.fn(async (items: any[]) => items[0]),
@@ -413,6 +416,7 @@ describe('handleUri', () => {
         }),
       },
       window: {
+        visibleTextEditors: [],
         showTextDocument: mock.fn(async () => ({ selection: null, revealRange: () => {} })),
         showErrorMessage: mock.fn(async () => undefined),
         showQuickPick: mock.fn(async () => undefined), // User cancels quickpick
@@ -451,6 +455,7 @@ describe('handleUri', () => {
         }),
       },
       window: {
+        visibleTextEditors: [],
         showTextDocument: mock.fn(async () => ({ selection: null, revealRange: () => {} })),
         showErrorMessage: mock.fn(async () => undefined),
         showQuickPick: mock.fn(async () => undefined),
@@ -489,6 +494,7 @@ describe('handleUri', () => {
         }),
       },
       window: {
+        visibleTextEditors: [],
         showTextDocument: mock.fn(async () => ({ selection: null, revealRange: () => {} })),
         showErrorMessage: mock.fn(async () => undefined),
         showQuickPick: mock.fn(async () => undefined),
@@ -522,6 +528,7 @@ describe('handleUri', () => {
         }),
       },
       window: {
+        visibleTextEditors: [],
         showTextDocument: mock.fn(async () => ({ selection: null, revealRange: () => {} })),
         showErrorMessage: mock.fn(async () => undefined),
         showQuickPick: mock.fn(async () => undefined),
@@ -627,6 +634,7 @@ describe('handleUri', () => {
         }),
       },
       window: {
+        visibleTextEditors: [],
         showTextDocument: mock.fn(async () => ({ selection: null, revealRange: () => {} })),
         showErrorMessage: mock.fn(async () => undefined),
         showQuickPick: mock.fn(async (items: any[]) => {
@@ -824,6 +832,147 @@ describe('handleUri', () => {
 
     assert.ok(statusBar._texts.some(t => t.includes('$(warning)') && t.includes('Missing')));
   });
+
+  it('skips LSP activation and retries when visible editor matches langDetector glob', async () => {
+    let executeCount = 0;
+    const vscode = createMockVSCode({
+      commands: {
+        executeCommand: mock.fn(async (cmd: string) => {
+          if (cmd === 'vscode.executeWorkspaceSymbolProvider') {
+            executeCount++;
+            return [];
+          }
+          return undefined;
+        }),
+      },
+      window: {
+        visibleTextEditors: [{ document: { uri: { fsPath: '/project/main.go' } } }],
+        showTextDocument: mock.fn(async () => ({ selection: null, revealRange: () => {} })),
+        showErrorMessage: mock.fn(async () => undefined),
+        showQuickPick: mock.fn(async () => undefined),
+        withProgress: mock.fn(async (_opts: any, task: any) => task({ report: () => {} }, { isCancellationRequested: false })),
+      },
+    });
+    const config = {
+      ...defaultConfig,
+      retryCount: 5,
+      retryInterval: 0,
+      langDetectors: [{ markers: ['go.mod'], glob: '**/*.go' }],
+    };
+    const statusBar = createMockStatusBar();
+    const { handleUri } = createHandler({ vscode, getConfig: () => config, logger: noopLogger, statusBar });
+
+    await handleUri(createMockUri('symbol=NotFound&cwd=/project'));
+
+    // findSymbols tries 2 query transforms (#name and name) per attempt.
+    // Only 2 calls (1 attempt x 2 transforms), not 10 (5 retries x 2)
+    assert.strictEqual(executeCount, 2);
+    assert.ok(!statusBar._texts.some(t => t.includes('Activating LSP')));
+    assert.strictEqual((vscode.workspace.findFiles as any).mock.calls.length, 0);
+  });
+
+  it('retries normally when no visible editor matches', async () => {
+    let executeCount = 0;
+    const vscode = createMockVSCode({
+      commands: {
+        executeCommand: mock.fn(async (cmd: string) => {
+          if (cmd === 'vscode.executeWorkspaceSymbolProvider') {
+            executeCount++;
+            return [];
+          }
+          return undefined;
+        }),
+      },
+    });
+    const config = {
+      ...defaultConfig,
+      retryCount: 3,
+      retryInterval: 0,
+      langDetectors: [{ markers: ['go.mod'], glob: '**/*.go' }],
+    };
+    const { handleUri } = createHandler({ vscode, getConfig: () => config, logger: noopLogger });
+
+    await handleUri(createMockUri('symbol=NotFound&cwd=/project'));
+
+    // 3 retries x 2 query transforms = 6 calls
+    assert.strictEqual(executeCount, 6);
+  });
+
+  it('uses configured language to match visible editors', async () => {
+    let executeCount = 0;
+    const vscode = createMockVSCode({
+      commands: {
+        executeCommand: mock.fn(async (cmd: string) => {
+          if (cmd === 'vscode.executeWorkspaceSymbolProvider') {
+            executeCount++;
+            return [];
+          }
+          return undefined;
+        }),
+      },
+      window: {
+        visibleTextEditors: [{ document: { uri: { fsPath: '/project/main.go' } } }],
+        showTextDocument: mock.fn(async () => ({ selection: null, revealRange: () => {} })),
+        showErrorMessage: mock.fn(async () => undefined),
+        showQuickPick: mock.fn(async () => undefined),
+        withProgress: mock.fn(async (_opts: any, task: any) => task({ report: () => {} }, { isCancellationRequested: false })),
+      },
+    });
+    const config = {
+      ...defaultConfig,
+      language: 'go' as const,
+      retryCount: 5,
+      retryInterval: 0,
+      langDetectors: [
+        { lang: 'go', markers: ['go.mod'], glob: '**/*.go' },
+        { lang: 'typescript', markers: ['tsconfig.json'], glob: '**/*.ts' },
+      ],
+    };
+    const { handleUri } = createHandler({ vscode, getConfig: () => config, logger: noopLogger });
+
+    await handleUri(createMockUri('symbol=NotFound&cwd=/project'));
+
+    // Should skip retries: 1 attempt x 2 transforms = 2
+    assert.strictEqual(executeCount, 2);
+  });
+
+  it('does not skip retries when visible editor extension does not match configured language', async () => {
+    let executeCount = 0;
+    const vscode = createMockVSCode({
+      commands: {
+        executeCommand: mock.fn(async (cmd: string) => {
+          if (cmd === 'vscode.executeWorkspaceSymbolProvider') {
+            executeCount++;
+            return [];
+          }
+          return undefined;
+        }),
+      },
+      window: {
+        visibleTextEditors: [{ document: { uri: { fsPath: '/project/main.go' } } }],
+        showTextDocument: mock.fn(async () => ({ selection: null, revealRange: () => {} })),
+        showErrorMessage: mock.fn(async () => undefined),
+        showQuickPick: mock.fn(async () => undefined),
+        withProgress: mock.fn(async (_opts: any, task: any) => task({ report: () => {} }, { isCancellationRequested: false })),
+      },
+    });
+    const config = {
+      ...defaultConfig,
+      language: 'typescript' as const,
+      retryCount: 3,
+      retryInterval: 0,
+      langDetectors: [
+        { lang: 'go', markers: ['go.mod'], glob: '**/*.go' },
+        { lang: 'typescript', markers: ['tsconfig.json'], glob: '**/*.ts' },
+      ],
+    };
+    const { handleUri } = createHandler({ vscode, getConfig: () => config, logger: noopLogger });
+
+    await handleUri(createMockUri('symbol=NotFound&cwd=/project'));
+
+    // .go visible but language=typescript, so should retry: 3 x 2 = 6
+    assert.strictEqual(executeCount, 6);
+  });
 });
 
 describe('sortByKindPriority', () => {
@@ -877,3 +1026,4 @@ describe('sortByKindPriority', () => {
     assert.strictEqual(symbols[1].name, 'B');
   });
 });
+

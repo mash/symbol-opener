@@ -1,4 +1,5 @@
 import type * as vscode from 'vscode';
+import { minimatch } from 'minimatch';
 import type { Config, LangDetector, Logger } from './config';
 import type { StatusBar, VSCodeAPI } from './vscode-api';
 import { expandKind, buildKindNameToEnum } from './symbol-kind';
@@ -134,9 +135,11 @@ export function createSymbolResolver(deps: SymbolResolverDeps) {
 
   async function resolveSymbol(
     symbolName: string,
-    kind?: string
+    kind?: string,
+    skipRetries?: boolean
   ): Promise<{ symbol?: vscode.SymbolInformation; cancelled?: boolean }> {
     const config = getConfig();
+    const retryCount = skipRetries ? 1 : config.retryCount;
 
     // ProgressLocation.Window does not support cancellation (no cancel UI).
     return vscode.window.withProgress(
@@ -145,11 +148,11 @@ export function createSymbolResolver(deps: SymbolResolverDeps) {
       },
       async () => {
         // LSP may not be ready immediately after workspace opens. Retry until indexed.
-        for (let attempt = 0; attempt < config.retryCount; attempt++) {
-          logger.debug(`attempt ${attempt + 1}/${config.retryCount}`);
+        for (let attempt = 0; attempt < retryCount; attempt++) {
+          logger.debug(`attempt ${attempt + 1}/${retryCount}`);
           updateStatusBar(
-            `$(search~spin) Searching "${symbolName}" (${attempt + 1}/${config.retryCount})`,
-            `Symbol Opener: Looking for "${symbolName}" - attempt ${attempt + 1} of ${config.retryCount}`
+            `$(search~spin) Searching "${symbolName}" (${attempt + 1}/${retryCount})`,
+            `Symbol Opener: Looking for "${symbolName}" - attempt ${attempt + 1} of ${retryCount}`
           );
 
           const result = await tryResolveSymbol(symbolName, kind);
@@ -253,15 +256,36 @@ export function createSymbolResolver(deps: SymbolResolverDeps) {
     }
   }
 
+  function isLspReady(langDetectors: LangDetector[], language?: string): boolean {
+    const editors = vscode.window.visibleTextEditors;
+    if (editors.length === 0) return false;
+
+    const globs = language
+      ? langDetectors.filter(d => d.lang === language).map(d => d.glob)
+      : langDetectors.map(d => d.glob);
+
+    if (globs.length === 0) return false;
+
+    return editors.some(editor =>
+      globs.some(glob => minimatch(editor.document.uri.fsPath, glob))
+    );
+  }
+
   async function openSymbol(symbol: string, kind?: string): Promise<void> {
     const config = getConfig();
-    updateStatusBar('$(loading~spin) Activating LSP...', 'Symbol Opener: Waiting for language server');
-    await activateLsp(config.langDetectors, config.language);
+
+    const lspReady = isLspReady(config.langDetectors, config.language);
+    if (lspReady) {
+      logger.debug('LSP already active (matching file visible in editor), skipping activation and retries');
+    } else {
+      updateStatusBar('$(loading~spin) Activating LSP...', 'Symbol Opener: Waiting for language server');
+      await activateLsp(config.langDetectors, config.language);
+    }
 
     logger.info(`resolving symbol: ${symbol}${kind ? `, kind: ${kind}` : ''}`);
     let result;
     try {
-      result = await resolveSymbol(symbol, kind);
+      result = await resolveSymbol(symbol, kind, lspReady);
     } catch (e) {
       if (e instanceof Error) {
         await vscode.window.showErrorMessage(e.message);

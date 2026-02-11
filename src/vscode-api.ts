@@ -14,6 +14,7 @@ export interface VSCodeAPI {
     findFiles(include: string, exclude?: string, maxResults?: number): Thenable<vscode.Uri[]>;
   };
   window: {
+    visibleTextEditors: readonly { document: { uri: { fsPath: string } } }[];
     showTextDocument(document: vscode.TextDocument): Thenable<vscode.TextEditor>;
     showErrorMessage(message: string): Thenable<string | undefined>;
     showQuickPick<T extends vscode.QuickPickItem>(

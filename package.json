@@ -221,10 +221,14 @@
     "install:cursor": "npm run package && cursor --install-extension symbol-opener-$(node -p \"require('./package.json').version\").vsix"
   },
   "devDependencies": {
+    "@types/minimatch": "^5.1.2",
     "@types/node": "^20.0.0",
     "@types/vscode": "^1.80.0",
     "@vscode/vsce": "^3.0.0",
     "tsx": "^4.0.0",
     "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "minimatch": "^10.1.2"
   }
 }
