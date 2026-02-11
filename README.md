@@ -6,6 +6,8 @@ VS Code/Cursor extension that opens symbol definitions via URI handler. Designed
 
 [![Demo](https://img.youtube.com/vi/GP5TwKnCzhQ/maxresdefault.jpg)](https://www.youtube.com/watch?v=GP5TwKnCzhQ)
 
+[▶ Watch demo](https://www.youtube.com/watch?v=GP5TwKnCzhQ)
+
 ## Install
 
 - [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=maaashjp.symbol-opener)
