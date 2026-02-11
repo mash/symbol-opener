@@ -2,7 +2,7 @@
   "name": "symbol-opener",
   "displayName": "Symbol Opener",
   "description": "Opens symbol definitions via URI handler for osc8wrap",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "license": "MIT",
   "files": [
     "out/*.js",
