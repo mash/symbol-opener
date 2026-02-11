@@ -430,18 +430,22 @@ describe('handleUri', () => {
     assert.strictEqual((vscode.window.showQuickPick as any).mock.calls.length, 1);
   });
 
-  it('does not show error when quickpick is cancelled on exact match', async () => {
+  it('falls back to workspace search when quickpick is cancelled on exact match', async () => {
+    let findInFilesArgs: any;
     const mockRange = { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } };
     const location1 = { uri: { fsPath: '/project/a.ts' }, range: mockRange };
     const location2 = { uri: { fsPath: '/project/b.ts' }, range: mockRange };
     const vscode = createMockVSCode({
       commands: {
-        executeCommand: mock.fn(async (cmd: string) => {
+        executeCommand: mock.fn(async (cmd: string, ...args: any[]) => {
           if (cmd === 'vscode.executeWorkspaceSymbolProvider') {
             return [
               { name: 'Foo', kind: SymbolKind.Function, location: location1 },
               { name: 'Foo', kind: SymbolKind.Function, location: location2 },
             ];
+          }
+          if (cmd === 'workbench.action.findInFiles') {
+            findInFilesArgs = args[0];
           }
           return undefined;
         }),
@@ -459,22 +463,27 @@ describe('handleUri', () => {
     await handleUri(createMockUri('symbol=Foo&cwd=/project'));
 
     assert.strictEqual((vscode.window.showErrorMessage as any).mock.calls.length, 0);
+    assert.deepStrictEqual(findInFilesArgs, { query: 'Foo' });
   });
 
   it('does not retry when exact match quickpick is cancelled', async () => {
     let executeCount = 0;
+    let findInFilesArgs: any;
     const mockRange = { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } };
     const location1 = { uri: { fsPath: '/project/a.ts' }, range: mockRange };
     const location2 = { uri: { fsPath: '/project/b.ts' }, range: mockRange };
     const vscode = createMockVSCode({
       commands: {
-        executeCommand: mock.fn(async (cmd: string) => {
+        executeCommand: mock.fn(async (cmd: string, ...args: any[]) => {
           if (cmd === 'vscode.executeWorkspaceSymbolProvider') {
             executeCount++;
             return [
               { name: 'Foo', kind: SymbolKind.Function, location: location1 },
               { name: 'Foo', kind: SymbolKind.Function, location: location2 },
             ];
+          }
+          if (cmd === 'workbench.action.findInFiles') {
+            findInFilesArgs = args[0];
           }
           return undefined;
         }),
@@ -493,16 +502,21 @@ describe('handleUri', () => {
 
     assert.strictEqual(executeCount, 1);
     assert.strictEqual((vscode.window.showErrorMessage as any).mock.calls.length, 0);
+    assert.deepStrictEqual(findInFilesArgs, { query: 'Foo' });
   });
 
-  it('does not show error when fuzzy match quickpick is cancelled', async () => {
+  it('falls back to workspace search when fuzzy match quickpick is cancelled', async () => {
+    let findInFilesArgs: any;
     const mockRange = { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } };
     const location = { uri: { fsPath: '/project/foo.ts' }, range: mockRange };
     const vscode = createMockVSCode({
       commands: {
-        executeCommand: mock.fn(async (cmd: string) => {
+        executeCommand: mock.fn(async (cmd: string, ...args: any[]) => {
           if (cmd === 'vscode.executeWorkspaceSymbolProvider') {
             return [{ name: 'FooBar', kind: SymbolKind.Function, location }];
+          }
+          if (cmd === 'workbench.action.findInFiles') {
+            findInFilesArgs = args[0];
           }
           return undefined;
         }),
@@ -519,6 +533,7 @@ describe('handleUri', () => {
     await handleUri(createMockUri('symbol=Foo&cwd=/project'));
 
     assert.strictEqual((vscode.window.showErrorMessage as any).mock.calls.length, 0);
+    assert.deepStrictEqual(findInFilesArgs, { query: 'Foo' });
   });
 
   it('retries when LSP returns empty results', async () => {

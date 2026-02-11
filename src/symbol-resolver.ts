@@ -278,8 +278,12 @@ export function createSymbolResolver(deps: SymbolResolverDeps) {
       editor.selection = new vscode.Selection(location.range.start, location.range.start);
       editor.revealRange(location.range, vscode.TextEditorRevealType.InCenter);
     } else if (result.cancelled) {
-      logger.info('cancelled');
-      statusBar?.hide();
+      logger.info('cancelled, falling back to workspace search');
+      updateStatusBar(`$(search) Searching "${symbol}" in files`);
+      hideStatusBarAfter(3000);
+      await vscode.commands.executeCommand('workbench.action.findInFiles', {
+        query: symbol,
+      });
     } else if (config.symbolNotFoundBehavior === 'search') {
       logger.info('not found, falling back to workspace search');
       updateStatusBar(`$(warning) "${symbol}" not found`);
