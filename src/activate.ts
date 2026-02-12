@@ -31,6 +31,16 @@ export function activate(context: vscode.ExtensionContext): void {
     },
   });
   context.subscriptions.push(uriHandler);
+
+  // When another window saves a pending URI and focuses this window via
+  // vscode.openFolder, processPendingUri (called once at activation) has
+  // already run. Re-check on every focus gain so the pending URI is picked up.
+  const windowStateListener = vscode.window.onDidChangeWindowState(e => {
+    if (e.focused) {
+      processPendingUri();
+    }
+  });
+  context.subscriptions.push(windowStateListener);
 }
 
 export function deactivate(): void {}

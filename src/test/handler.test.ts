@@ -357,8 +357,8 @@ describe('handleUri', () => {
 
     // Should not process the URI (cwd doesn't match)
     assert.strictEqual((vscode.workspace.openTextDocument as any).mock.calls.length, 0);
-    // Pending URI should be cleared immediately after reading to prevent race conditions
-    assert.strictEqual(globalState.get('pendingUri'), undefined);
+    // Pending URI should remain so the correct window can pick it up on focus
+    assert.deepStrictEqual(globalState.get('pendingUri'), { symbol: 'Baz', cwd: '/other-project' });
   });
 
   it('shows quickpick for fuzzy matches when no exact match', async () => {

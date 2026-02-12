@@ -76,16 +76,9 @@ export function createHandler(deps: HandlerDeps) {
       return;
     }
 
-    // Clear immediately after reading to prevent race conditions
-    // where multiple windows could process the same pending URI
-    await globalState.update(PENDING_URI_KEY, undefined);
-    logger.debug('cleared pending URI');
-
     const { symbol, cwd, kind } = pending;
     logger.debug(`found pending URI: ${JSON.stringify(pending)}`);
 
-    // Only process if this window has the target workspace open.
-    // Other windows may also receive onStartupFinished, so we skip if cwd doesn't match.
     const workspaceFolders = vscode.workspace.workspaceFolders;
     const isWorkspaceOpen = workspaceFolders?.some(
       folder => folder.uri.fsPath === cwd
@@ -95,6 +88,9 @@ export function createHandler(deps: HandlerDeps) {
       logger.debug(`cwd ${cwd} not in current workspace, skipping`);
       return;
     }
+
+    await globalState.update(PENDING_URI_KEY, undefined);
+    logger.debug('cleared pending URI');
 
     await openSymbol(symbol, kind);
   }
