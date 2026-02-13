@@ -292,37 +292,43 @@ export function createSymbolResolver(deps: SymbolResolverDeps) {
       }
       return;
     }
-    if (result.symbol) {
-      const { location } = result.symbol;
-      logger.info(`found: ${location.uri.fsPath}:${location.range.start.line}`);
-      updateStatusBar(`$(check) Found "${symbol}"`);
-      hideStatusBarAfter(3000);
-      const document = await vscode.workspace.openTextDocument(location.uri);
-      const editor = await vscode.window.showTextDocument(document);
-      editor.selection = new vscode.Selection(location.range.start, location.range.start);
-      editor.revealRange(location.range, vscode.TextEditorRevealType.InCenter);
-    } else if (result.cancelled) {
-      logger.info('cancelled, falling back to workspace search');
-      updateStatusBar(`$(search) Searching "${symbol}" in files`);
-      hideStatusBarAfter(3000);
-      await vscode.commands.executeCommand('workbench.action.findInFiles', {
-        query: symbol,
-      });
-    } else if (config.symbolNotFoundBehavior === 'search') {
-      logger.info('not found, falling back to workspace search');
-      updateStatusBar(`$(warning) "${symbol}" not found`);
-      hideStatusBarAfter(3000);
-      await vscode.commands.executeCommand('workbench.action.findInFiles', {
-        query: symbol,
-      });
-    } else {
-      logger.info('not found');
-      updateStatusBar(`$(warning) "${symbol}" not found`);
-      hideStatusBarAfter(3000);
-      const kindInfo = kind ? ` (kind: ${kind})` : '';
-      await vscode.window.showErrorMessage(
-        `Symbol "${symbol}"${kindInfo} not found in workspace`
-      );
+    try {
+      if (result.symbol) {
+        const { location } = result.symbol;
+        logger.info(`found: ${location.uri.fsPath}:${location.range.start.line}`);
+        updateStatusBar(`$(check) Found "${symbol}"`);
+        hideStatusBarAfter(3000);
+        const document = await vscode.workspace.openTextDocument(location.uri);
+        const editor = await vscode.window.showTextDocument(document);
+        editor.selection = new vscode.Selection(location.range.start, location.range.start);
+        editor.revealRange(location.range, vscode.TextEditorRevealType.InCenter);
+      } else if (result.cancelled) {
+        logger.info('cancelled, falling back to workspace search');
+        updateStatusBar(`$(search) Searching "${symbol}" in files`);
+        hideStatusBarAfter(3000);
+        await vscode.commands.executeCommand('workbench.action.findInFiles', {
+          query: symbol,
+        });
+      } else if (config.symbolNotFoundBehavior === 'search') {
+        logger.info('not found, falling back to workspace search');
+        updateStatusBar(`$(warning) "${symbol}" not found`);
+        hideStatusBarAfter(3000);
+        await vscode.commands.executeCommand('workbench.action.findInFiles', {
+          query: symbol,
+        });
+      } else {
+        logger.info('not found');
+        updateStatusBar(`$(warning) "${symbol}" not found`);
+        hideStatusBarAfter(3000);
+        const kindInfo = kind ? ` (kind: ${kind})` : '';
+        await vscode.window.showErrorMessage(
+          `Symbol "${symbol}"${kindInfo} not found in workspace`
+        );
+      }
+    } catch (e) {
+      if (e instanceof Error) {
+        await vscode.window.showErrorMessage(e.message);
+      }
     }
   }
 
