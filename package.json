@@ -147,7 +147,7 @@
                 "tsconfig.json",
                 "package.json"
               ],
-              "glob": "**/*.{ts,js}",
+              "glob": "**/*.{ts,tsx,js,jsx}",
               "exclude": "**/node_modules/**"
             }
           ],
